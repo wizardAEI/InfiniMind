@@ -1,0 +1,31 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="icon-mask">
+      <rect x="112" y="112" width="800" height="800" rx="184"/>
+    </clipPath>
+  </defs>
+
+  <rect x="112" y="112" width="800" height="800" rx="184" fill="#F4F4F0"/>
+  <g clip-path="url(#icon-mask)">
+    <path d="M112 272H912M112 432H912M112 592H912M112 752H912" stroke="#E1E1DA" stroke-width="2"/>
+    <path d="M272 112V912M432 112V912M592 112V912M752 112V912" stroke="#E1E1DA" stroke-width="2"/>
+    <path d="M512 252V772M252 512H772" stroke="#CDD9F4" stroke-width="8"/>
+    <rect x="504" y="300" width="16" height="424" fill="#005CFF"/>
+    <rect x="300" y="504" width="424" height="16" fill="#005CFF"/>
+  </g>
+
+  <rect x="112" y="112" width="800" height="800" rx="184" stroke="#070707" stroke-width="14"/>
+
+  <path
+    d="M296 514C296 410 408 386 512 512C616 638 728 614 728 510C728 406 616 386 512 512C408 638 296 618 296 514Z"
+    stroke="#070707"
+    stroke-width="62"
+    stroke-linecap="square"
+    stroke-linejoin="round"
+  />
+  <path d="M356 666L668 358" stroke="#005CFF" stroke-width="34" stroke-linecap="square"/>
+  <rect x="374" y="348" width="156" height="116" fill="#F4F4F0" stroke="#070707" stroke-width="20"/>
+  <rect x="494" y="560" width="156" height="116" fill="#F4F4F0" stroke="#070707" stroke-width="20"/>
+  <rect x="446" y="444" width="132" height="132" fill="#F4F4F0" stroke="#070707" stroke-width="20"/>
+  <circle cx="512" cy="512" r="18" fill="#005CFF"/>
+</svg>
