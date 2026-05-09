@@ -1,22 +1,32 @@
 {
   "name": "infinimind",
+  "productName": "InfiniMind",
   "private": true,
   "version": "0.0.1",
   "type": "module",
   "main": "electron/main.cjs",
+  "bin": {
+    "infinimind-mcp": "mcp/start.cjs"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "desktop": "npm run build && electron ."
+    "desktop": "npm run build && node scripts/run-desktop.cjs",
+    "mcp": "node mcp/start.cjs",
+    "mcp:config": "node scripts/print-mcp-config.cjs",
+    "mcp:inspect": "npx @modelcontextprotocol/inspector node mcp/start.cjs",
+    "test": "node --no-warnings=ExperimentalWarning --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@vitejs/plugin-react": "^6.0.1",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "vite": "^8.0.11"
+    "vite": "^8.0.11",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "electron": "^39.2.7"
