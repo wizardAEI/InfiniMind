@@ -34,13 +34,17 @@ import {
 
 const confirmSchema = { confirm: z.boolean().optional(), confirmText: z.string().optional() };
 const cardInputSchema = z.object({
-  type: z.enum(["text", "image", "link"]).optional(),
+  type: z.enum(["text", "image", "link", "attachment"]).optional(),
   note: z.string().optional(),
   imageUrl: z.string().optional(),
   imageTone: z.enum(["mono", "color"]).optional(),
   imageStyle: z.string().optional(),
   linkTitle: z.string().optional(),
   linkUrl: z.string().optional(),
+  attachmentUrl: z.string().optional(),
+  attachmentName: z.string().optional(),
+  attachmentMime: z.string().optional(),
+  attachmentSize: z.number().optional(),
 });
 const positionSchema = z.object({ x: z.number(), y: z.number() });
 
@@ -110,7 +114,7 @@ export function registerTools(server, { repoRoot }) {
       inputSchema: z.object({
         query: z.string().optional(),
         projectId: z.string().optional(),
-        cardType: z.enum(["text", "image", "link"]).optional(),
+        cardType: z.enum(["text", "image", "link", "attachment"]).optional(),
         includeTrash: z.boolean().optional(),
         limit: z.number().int().min(1).max(200).optional(),
       }),
@@ -273,24 +277,32 @@ export function registerTools(server, { repoRoot }) {
     afterCardId: z.string().optional(),
     position: positionSchema.optional(),
     card: cardInputSchema.optional(),
-    type: z.enum(["text", "image", "link"]).optional(),
+    type: z.enum(["text", "image", "link", "attachment"]).optional(),
     note: z.string().optional(),
     imageUrl: z.string().optional(),
     imageTone: z.enum(["mono", "color"]).optional(),
     linkTitle: z.string().optional(),
     linkUrl: z.string().optional(),
+    attachmentUrl: z.string().optional(),
+    attachmentName: z.string().optional(),
+    attachmentMime: z.string().optional(),
+    attachmentSize: z.number().optional(),
   }));
   registerOperationTool(server, "infinimind_update_card", "Update card type and content.", z.object({
     projectId: z.string().optional(),
     setId: z.string(),
     cardId: z.string(),
-    type: z.enum(["text", "image", "link"]).optional(),
+    type: z.enum(["text", "image", "link", "attachment"]).optional(),
     note: z.string().optional(),
     imageUrl: z.string().optional(),
     imageTone: z.enum(["mono", "color"]).optional(),
     imageStyle: z.string().optional(),
     linkTitle: z.string().optional(),
     linkUrl: z.string().optional(),
+    attachmentUrl: z.string().optional(),
+    attachmentName: z.string().optional(),
+    attachmentMime: z.string().optional(),
+    attachmentSize: z.number().optional(),
   }));
   registerOperationTool(server, "infinimind_reorder_cards", "Reorder cards within one set.", z.object({
     projectId: z.string().optional(),

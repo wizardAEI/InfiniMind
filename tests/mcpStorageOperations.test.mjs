@@ -209,6 +209,66 @@ test("organization operations group, rewire and validate scoped graph", () => {
   assert.equal(validateWorkspace(workspace).ok, true);
 });
 
+test("move_node moves nested organizations out and preserves scoped links", () => {
+  let workspace = createDefaultWorkspaceState();
+  const projectId = workspace.activeProjectId;
+
+  workspace = applyOperation(workspace, {
+    type: "create_organization",
+    projectId,
+    title: "Parent",
+    position: { x: 320, y: -40 },
+  }).workspace;
+  const parentId = workspace.projects[0].field.organizations[0].id;
+
+  workspace = applyOperation(workspace, {
+    type: "create_organization",
+    projectId,
+    title: "Child",
+    parentId,
+    position: { x: 60, y: 80 },
+  }).workspace;
+  const childId = workspace.projects[0].field.organizations.find((organization) => organization.title === "Child").id;
+
+  workspace = applyOperation(workspace, {
+    type: "create_set",
+    projectId,
+    title: "Peer",
+    parentId,
+    position: { x: -120, y: 0 },
+  }).workspace;
+  const peerId = workspace.projects[0].field.activeSetId;
+
+  workspace = applyOperation(workspace, {
+    type: "create_connection",
+    projectId,
+    scopeId: parentId,
+    fromNodeId: childId,
+    toNodeId: peerId,
+  }).workspace;
+  workspace = applyOperation(workspace, {
+    type: "move_node",
+    projectId,
+    nodeId: childId,
+    targetOrganizationId: null,
+  }).workspace;
+
+  const field = workspace.projects[0].field;
+  const child = field.organizations.find((organization) => organization.id === childId);
+  assert.equal(child.parentId, null);
+  assert.deepEqual(child.position, { x: 380, y: 40 });
+  assert.equal(
+    field.connections.some(
+      (connection) =>
+        (connection.scopeId || null) === null &&
+        [connection.fromNodeId, connection.toNodeId].includes(childId) &&
+        [connection.fromNodeId, connection.toNodeId].includes(parentId)
+    ),
+    true
+  );
+  assert.equal(validateWorkspace(workspace).ok, true);
+});
+
 test("validation reports cross-scope organization connection errors", () => {
   let workspace = createDefaultWorkspaceState();
   const projectId = workspace.activeProjectId;
@@ -280,4 +340,29 @@ test("validation reports missing managed images when asset list is known", () =>
   const result = validateWorkspace(workspace, { imageAssets: [] });
   assert.equal(result.ok, true);
   assert.equal(result.issues.some((issue) => issue.code === "missing_image_asset"), true);
+});
+
+test("operations support attachment cards", () => {
+  let workspace = createDefaultWorkspaceState();
+  const projectId = workspace.activeProjectId;
+  const setId = workspace.projects[0].field.sets[0].id;
+
+  const result = applyOperation(workspace, {
+    type: "create_card",
+    projectId,
+    setId,
+    card: {
+      type: "attachment",
+      attachmentName: "brief.pdf",
+      attachmentUrl: "infinimind-image://missing-attachment",
+      attachmentMime: "application/pdf",
+      attachmentSize: 2048,
+    },
+  });
+  workspace = result.workspace;
+  const card = workspace.projects[0].field.sets[0].cards.find((item) => item.type === "attachment");
+
+  assert.equal(card.attachmentName, "brief.pdf");
+  assert.equal(card.attachmentSize, 2048);
+  assert.equal(validateWorkspace(workspace, { imageAssets: [] }).issues.some((issue) => issue.code === "missing_attachment_asset"), true);
 });

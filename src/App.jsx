@@ -11,10 +11,12 @@ import {
   Link2,
   Maximize2,
   Minimize2,
+  Paperclip,
   Plus,
   RotateCcw,
   Settings,
   Trash2,
+  Ungroup,
   Upload,
   ZoomIn,
   ZoomOut,
@@ -52,12 +54,14 @@ const cardTypes = [
   { id: "text", label: "Text", icon: FileText },
   { id: "image", label: "Image", icon: ImageIcon },
   { id: "link", label: "Link", icon: Link2 },
+  { id: "attachment", label: "Attachment", icon: Paperclip },
 ];
 
 const typeMeta = {
   text: { title: "TEXT FIELD", glyph: "T", rhythm: "001" },
   image: { title: "IMAGE NODE", glyph: "I", rhythm: "010" },
   link: { title: "LINK VECTOR", glyph: "L", rhythm: "011" },
+  attachment: { title: "ATTACHMENT", glyph: "A", rhythm: "100" },
 };
 
 const wallSetSize = { width: 268, height: 178 };
@@ -701,6 +705,44 @@ function CardField({
     setEditingSetId(null);
     setSelectedConnectionId(null);
     setSelectedNodeIds(new Set([organization.id]));
+  }
+
+  function moveOrganizationOutOfGroup(organizationId) {
+    const organization = organizationLookup.get(organizationId);
+    const parentOrganization = organization?.parentId ? organizationLookup.get(organization.parentId) : null;
+    if (!organization || !parentOrganization) {
+      return;
+    }
+
+    const targetScopeId = parentOrganization.parentId || null;
+    const nextPosition = getMovedOutNodePosition(organization, parentOrganization);
+
+    setBirthSourceId(null);
+    setFreshId(null);
+    setEditingSetId(null);
+    editorReturnView.current = null;
+    setPendingConnection(null);
+    setSelectedConnectionId(null);
+    setConnectionSourceId(null);
+    setSelectedNodeIds(new Set([organizationId]));
+    setScopeTransition("exit");
+    setActiveScopeId(targetScopeId);
+    window.setTimeout(() => setScopeTransition(null), reduceMotion ? 120 : 640);
+
+    onChange((current) => ({
+      organizations: current.organizations.map((item) =>
+        item.id === organizationId
+          ? {
+              ...item,
+              parentId: targetScopeId,
+              position: nextPosition,
+            }
+          : item
+      ),
+      connections: dedupeConnections(
+        rewireConnectionsForMovedOutNode(current.connections, organizationId, parentOrganization.id, targetScopeId)
+      ),
+    }));
   }
 
   function requestDeleteCardSet(setId) {
@@ -1665,33 +1707,29 @@ function CardField({
   function setScopeTitle(nextTitle) {
     if (activeScopeId) {
       patchOrganization(activeScopeId, { title: nextTitle });
-      return;
     }
-
-    onChange({ fieldTitle: nextTitle });
   }
 
   return (
     <section className="field-panel" onClick={handleStageClick}>
-      <div className="scope-breadcrumbs" onClick={(event) => event.stopPropagation()}>
-        <button type="button" disabled={!activeScopeId} onClick={() => goToScope(activeScope?.parentId || null)}>
-          <ChevronLeft size={15} />
-        </button>
-        <button type="button" onClick={() => goToScope(null)}>
-          Root
-        </button>
-        {scopePath.map((organization) => (
-          <button type="button" key={organization.id} onClick={() => goToScope(organization.id)}>
-            {organization.title || "Untitled"}
+      {activeScope && (
+        <div className="scope-breadcrumbs" onClick={(event) => event.stopPropagation()}>
+          <button type="button" aria-label="Back to parent organization" onClick={() => goToScope(activeScope.parentId || null)}>
+            <ChevronLeft size={15} />
           </button>
-        ))}
-        <input
-          aria-label={activeScopeId ? "Organization title" : "Field title"}
-          value={activeScope?.title || fieldTitle}
-          onChange={(event) => setScopeTitle(event.target.value)}
-          onFocus={(event) => event.target.select()}
-        />
-      </div>
+          {scopePath.slice(0, -1).map((organization) => (
+            <button type="button" key={organization.id} onClick={() => goToScope(organization.id)}>
+              {organization.title || "Untitled"}
+            </button>
+          ))}
+          <input
+            aria-label="Organization title"
+            value={activeScope.title || ""}
+            onChange={(event) => setScopeTitle(event.target.value)}
+            onFocus={(event) => event.target.select()}
+          />
+        </div>
+      )}
       <div className="field-toolbar">
         <button
           className="icon-button"
@@ -1754,6 +1792,20 @@ function CardField({
         >
           <Layers3 size={18} />
         </button>
+        {activeScope?.parentId && (
+          <button
+            className="icon-button"
+            type="button"
+            title="Move this organization out of group"
+            aria-label="Move this organization out of group"
+            onClick={(event) => {
+              event.stopPropagation();
+              moveOrganizationOutOfGroup(activeScope.id);
+            }}
+          >
+            <Ungroup size={18} />
+          </button>
+        )}
         <button
           className="icon-button trash-toolbar-button"
           type="button"
@@ -1934,6 +1986,7 @@ function CardField({
                     onConnectionEnd={endConnection}
                     onConnectionCancel={cancelConnection}
                     onConnectionClick={(event) => clickConnection(organization.id, event)}
+                    onMoveOut={() => moveOrganizationOutOfGroup(organization.id)}
                   />
                 )}
               </motion.section>
@@ -2336,6 +2389,7 @@ function OrganizationSummary({
   onConnectionEnd,
   onConnectionCancel,
   onConnectionClick,
+  onMoveOut,
 }) {
   const directNodeCount = childSets.length + childOrganizations.length;
   const cardCount = childSets.reduce((total, set) => total + set.cards.length, 0);
@@ -2373,6 +2427,19 @@ function OrganizationSummary({
         >
           <Maximize2 size={15} />
         </button>
+        {organization.parentId && (
+          <button
+            type="button"
+            title="Move organization out of group"
+            aria-label={`Move ${organization.title} out of group`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onMoveOut();
+            }}
+          >
+            <Ungroup size={14} />
+          </button>
+        )}
         <button
           className="delete-button"
           type="button"
@@ -2531,6 +2598,10 @@ function CardSetEditor({
       imageTone: "mono",
       linkUrl: "",
       linkTitle: "",
+      attachmentUrl: "",
+      attachmentName: "",
+      attachmentMime: "",
+      attachmentSize: 0,
     };
 
     onPatch((currentSet) => {
@@ -3122,6 +3193,7 @@ function CardFaceSurface({ card, type, index, className, disabled, onTypeChange,
         {type === "text" && <TextCard card={faceCard} onUpdate={onUpdate} />}
         {type === "image" && <ImageCard card={faceCard} onUpdate={onUpdate} />}
         {type === "link" && <LinkCard card={faceCard} onUpdate={onUpdate} />}
+        {type === "attachment" && <AttachmentCard card={faceCard} onUpdate={onUpdate} />}
       </div>
 
       <footer className="card-actions">
@@ -3286,14 +3358,14 @@ function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onerror = () => reject(reader.error || new Error("Could not read image file."));
+    reader.onerror = () => reject(reader.error || new Error("Could not read file."));
     reader.onload = () => {
       if (typeof reader.result === "string") {
         resolve(reader.result);
         return;
       }
 
-      reject(new Error("Could not read image file."));
+      reject(new Error("Could not read file."));
     };
 
     reader.readAsDataURL(file);
@@ -3327,6 +3399,135 @@ function LinkCard({ card, onUpdate }) {
       </a>
     </div>
   );
+}
+
+function AttachmentCard({ card, onUpdate }) {
+  const fileInput = useRef(null);
+  const attachmentUrl = card.attachmentUrl?.trim() || "";
+  const displayName = card.attachmentName?.trim() || attachmentUrl || "Attachment";
+  const displayMeta = [formatFileSize(card.attachmentSize), card.attachmentMime].filter(Boolean).join(" / ");
+
+  async function importFile(file) {
+    if (!file) return;
+    if (!window.infinimindStorage?.importImage) {
+      window.alert("Attachment upload is available in the desktop app.");
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const asset = await window.infinimindStorage.importImage({
+        dataUrl,
+        mime: file.type || "application/octet-stream",
+        name: file.name || "",
+      });
+
+      if (asset?.url) {
+        onUpdate({
+          attachmentUrl: asset.url,
+          attachmentName: file.name || card.attachmentName || "Attachment",
+          attachmentMime: file.type || asset.mime || "",
+          attachmentSize: Number.isFinite(asset.size) ? asset.size : file.size || 0,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to import attachment", error);
+      window.alert("Could not import this attachment.");
+    } finally {
+      if (fileInput.current) {
+        fileInput.current.value = "";
+      }
+    }
+  }
+
+  async function openAttachment() {
+    if (!attachmentUrl) return;
+    const href = getAttachmentHref(attachmentUrl);
+
+    if (window.infinimindStorage?.openAsset) {
+      try {
+        const result = await window.infinimindStorage.openAsset(href);
+        if (result?.ok) {
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to open attachment", error);
+      }
+    }
+
+    window.open(href, "_blank", "noopener,noreferrer");
+  }
+
+  return (
+    <div className="attachment-surface" onClick={(event) => event.stopPropagation()}>
+      <div className="attachment-preview">
+        <Paperclip size={28} strokeWidth={2.2} />
+        <strong>{displayName}</strong>
+        <span>{displayMeta || "ATTACHMENT"}</span>
+      </div>
+      <label>
+        <span>NAME</span>
+        <input
+          value={card.attachmentName}
+          placeholder="File name"
+          onChange={(event) => onUpdate({ attachmentName: event.target.value })}
+        />
+      </label>
+      <label>
+        <span>SOURCE</span>
+        <div className="attachment-input-row">
+          <input
+            value={card.attachmentUrl}
+            placeholder="Paste file URL"
+            onChange={(event) =>
+              onUpdate({
+                attachmentUrl: event.target.value,
+                attachmentMime: "",
+                attachmentSize: 0,
+              })
+            }
+          />
+          <button type="button" title="Upload attachment" aria-label="Upload attachment" onClick={() => fileInput.current?.click()}>
+            <Upload size={16} />
+          </button>
+        </div>
+      </label>
+      <button
+        className="attachment-open-button"
+        disabled={!attachmentUrl}
+        type="button"
+        onClick={openAttachment}
+      >
+        <span>Open</span>
+        <ArrowUpRight size={17} />
+      </button>
+      <input ref={fileInput} type="file" onChange={(event) => importFile(event.target.files?.[0])} />
+    </div>
+  );
+}
+
+function getAttachmentHref(value) {
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
+    return value;
+  }
+
+  return normalizeUrl(value);
+}
+
+function formatFileSize(value) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+
+  if (value < 1024) {
+    return `${value} B`;
+  }
+
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function useViewportWidth() {
@@ -3370,10 +3571,10 @@ function getEditorFocusZoom(editorWidth, editorHeight) {
 
 function getEditorFocusYOffset() {
   if (typeof window === "undefined") {
-    return 24;
+    return 72;
   }
 
-  return window.innerWidth < 760 ? 34 : 20;
+  return window.innerWidth < 760 ? 64 : 72;
 }
 
 function getWheelZoomDelta(event) {
@@ -3526,6 +3727,35 @@ function rewireConnectionsForMovedNode(connections, nodeId, sourceScopeId, targe
       return nextConnection.fromNodeId === nextConnection.toNodeId ? null : nextConnection;
     })
     .filter(Boolean);
+}
+
+function rewireConnectionsForMovedOutNode(connections, nodeId, sourceOrganizationId, targetScopeId) {
+  return connections
+    .map((connection) => {
+      const scopeId = connection.scopeId || null;
+      const fromNodeId = connection.fromNodeId || connection.fromSetId;
+      const toNodeId = connection.toNodeId || connection.toSetId;
+      if (scopeId !== sourceOrganizationId || (fromNodeId !== nodeId && toNodeId !== nodeId)) {
+        return { ...connection, scopeId, fromNodeId, toNodeId };
+      }
+
+      const nextConnection = {
+        ...connection,
+        scopeId: targetScopeId,
+        fromNodeId: fromNodeId === nodeId ? nodeId : sourceOrganizationId,
+        toNodeId: toNodeId === nodeId ? nodeId : sourceOrganizationId,
+      };
+
+      return nextConnection.fromNodeId === nextConnection.toNodeId ? null : nextConnection;
+    })
+    .filter(Boolean);
+}
+
+function getMovedOutNodePosition(node, parentOrganization) {
+  return {
+    x: parentOrganization.position.x + node.position.x,
+    y: parentOrganization.position.y + node.position.y,
+  };
 }
 
 function projectMiniMapNodes(nodes) {

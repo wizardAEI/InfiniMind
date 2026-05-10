@@ -146,6 +146,11 @@ export function projectToMarkdown(project, options = {}) {
         } else if (card.type === "link") {
           lines.push(`Title: ${card.linkTitle || ""}`);
           lines.push(`URL: ${card.linkUrl || ""}`);
+        } else if (card.type === "attachment") {
+          lines.push(`Name: ${card.attachmentName || ""}`);
+          lines.push(`URL: ${card.attachmentUrl || ""}`);
+          lines.push(`MIME: ${card.attachmentMime || ""}`);
+          lines.push(`Size: ${card.attachmentSize || 0}`);
         }
         lines.push("");
       }
@@ -974,13 +979,21 @@ function moveNodeOperation(workspace, input) {
   const node = getNodeOrThrow(project, input.nodeId);
   const sourceScopeId = node.parentId || null;
   const targetOrganizationId = input.targetOrganizationId || null;
+  const sourceOrganization = sourceScopeId ? getOrganizationOrThrow(project, sourceScopeId) : null;
+  let targetOrganization = null;
   if (targetOrganizationId) {
-    getOrganizationOrThrow(project, targetOrganizationId);
+    targetOrganization = getOrganizationOrThrow(project, targetOrganizationId);
   }
   if (node.kind === "organization" && targetOrganizationId && (node.id === targetOrganizationId || isDescendantOrganization(targetOrganizationId, node.id, project.field.organizations))) {
     throw new Error("Cannot move an organization into itself or its descendant.");
   }
-  const nextPosition = input.position ? normalizePosition(input.position, node.position) : node.position;
+  const nextPosition = input.position
+    ? normalizePosition(input.position, node.position)
+    : convertNodePositionBetweenScopes(node.position, sourceScopeId, targetOrganizationId, project.field.organizations);
+  const sourceContainerId =
+    sourceOrganization && (sourceOrganization.parentId || null) === targetOrganizationId ? sourceOrganization.id : null;
+  const targetContainerId =
+    targetOrganization && (targetOrganization.parentId || null) === sourceScopeId ? targetOrganization.id : null;
 
   if (node.kind === "set") {
     const set = getSetOrThrow(project, node.id);
@@ -992,9 +1005,16 @@ function moveNodeOperation(workspace, input) {
     organization.position = nextPosition;
   }
 
-  project.field.connections = dedupeConnections(
-    rewireConnectionsForMovedNodeForOperations(project.field.connections, node.id, sourceScopeId, targetOrganizationId)
-  );
+  if (sourceScopeId !== targetOrganizationId) {
+    project.field.connections = dedupeConnections(
+      rewireConnectionsForMovedNodeForOperations(project.field.connections, node.id, {
+        sourceScopeId,
+        targetScopeId: targetOrganizationId,
+        sourceContainerId,
+        targetContainerId,
+      })
+    );
+  }
   touchProject(project);
   return change("move_node", project.id, `Moved node ${node.id}.`, workspaceResourceLinks(project.id));
 }
@@ -1136,10 +1156,13 @@ function updateCardOperation(workspace, input) {
     }
     patch.type = input.type;
   }
-  for (const key of ["note", "imageUrl", "linkTitle", "linkUrl"]) {
+  for (const key of ["note", "imageUrl", "linkTitle", "linkUrl", "attachmentUrl", "attachmentName", "attachmentMime"]) {
     if (input[key] !== undefined) {
       patch[key] = String(input[key]);
     }
+  }
+  if (input.attachmentSize !== undefined) {
+    patch.attachmentSize = Number.isFinite(input.attachmentSize) ? input.attachmentSize : 0;
   }
   if (input.imageTone !== undefined) {
     patch.imageTone = input.imageTone === "color" ? "color" : "mono";
@@ -1404,6 +1427,10 @@ function createCardFromInput(input = {}) {
     imageTone: input.imageTone === "color" ? "color" : "mono",
     linkUrl: typeof input.linkUrl === "string" ? input.linkUrl : "",
     linkTitle: typeof input.linkTitle === "string" ? input.linkTitle : "",
+    attachmentUrl: typeof input.attachmentUrl === "string" ? input.attachmentUrl : "",
+    attachmentName: typeof input.attachmentName === "string" ? input.attachmentName : "",
+    attachmentMime: typeof input.attachmentMime === "string" ? input.attachmentMime : "",
+    attachmentSize: Number.isFinite(input.attachmentSize) ? input.attachmentSize : 0,
   });
 }
 
@@ -1527,7 +1554,11 @@ function rebaseConnectionsForGroupedNodesForOperations(connections, selectedIds,
     .filter(Boolean);
 }
 
-function rewireConnectionsForMovedNodeForOperations(connections, nodeId, sourceScopeId, targetOrganizationId) {
+function rewireConnectionsForMovedNodeForOperations(
+  connections,
+  nodeId,
+  { sourceScopeId, targetScopeId, sourceContainerId, targetContainerId }
+) {
   return connections
     .map((connection) => {
       const scopeId = connection.scopeId || null;
@@ -1537,16 +1568,70 @@ function rewireConnectionsForMovedNodeForOperations(connections, nodeId, sourceS
         return { ...connection, scopeId, fromNodeId, toNodeId };
       }
 
-      const nextConnection = {
-        ...connection,
-        scopeId,
-        fromNodeId: fromNodeId === nodeId ? targetOrganizationId : fromNodeId,
-        toNodeId: toNodeId === nodeId ? targetOrganizationId : toNodeId,
-      };
+      const nextConnection = sourceContainerId
+        ? {
+            ...connection,
+            scopeId: targetScopeId,
+            fromNodeId: fromNodeId === nodeId ? nodeId : sourceContainerId,
+            toNodeId: toNodeId === nodeId ? nodeId : sourceContainerId,
+          }
+        : targetContainerId
+          ? {
+              ...connection,
+              scopeId,
+              fromNodeId: fromNodeId === nodeId ? targetContainerId : fromNodeId,
+              toNodeId: toNodeId === nodeId ? targetContainerId : toNodeId,
+            }
+          : null;
 
-      return nextConnection.fromNodeId === nextConnection.toNodeId ? null : nextConnection;
+      return nextConnection && nextConnection.fromNodeId !== nextConnection.toNodeId ? nextConnection : null;
     })
     .filter(Boolean);
+}
+
+function convertNodePositionBetweenScopes(position, sourceScopeId, targetScopeId, organizations = []) {
+  const rootPosition = convertScopedPositionToRoot(position, sourceScopeId, organizations);
+  return convertRootPositionToScoped(rootPosition, targetScopeId, organizations);
+}
+
+function convertScopedPositionToRoot(position, scopeId, organizations = []) {
+  const organizationById = new Map(organizations.map((organization) => [organization.id, organization]));
+  const result = { x: position.x, y: position.y };
+  const seen = new Set();
+  let currentScopeId = scopeId;
+
+  while (currentScopeId && !seen.has(currentScopeId)) {
+    const organization = organizationById.get(currentScopeId);
+    if (!organization) {
+      break;
+    }
+    result.x += organization.position.x;
+    result.y += organization.position.y;
+    seen.add(currentScopeId);
+    currentScopeId = organization.parentId || null;
+  }
+
+  return result;
+}
+
+function convertRootPositionToScoped(position, scopeId, organizations = []) {
+  const organizationById = new Map(organizations.map((organization) => [organization.id, organization]));
+  const result = { x: position.x, y: position.y };
+  const seen = new Set();
+  let currentScopeId = scopeId;
+
+  while (currentScopeId && !seen.has(currentScopeId)) {
+    const organization = organizationById.get(currentScopeId);
+    if (!organization) {
+      break;
+    }
+    result.x -= organization.position.x;
+    result.y -= organization.position.y;
+    seen.add(currentScopeId);
+    currentScopeId = organization.parentId || null;
+  }
+
+  return result;
 }
 
 function structuredCloneJson(value) {
@@ -1561,7 +1646,18 @@ function matchesText(value, query) {
 }
 
 function getSearchableCardText(card) {
-  return [card.note, card.imageUrl, card.imageTone, card.linkTitle, card.linkUrl].filter(Boolean).join("\n");
+  return [
+    card.note,
+    card.imageUrl,
+    card.imageTone,
+    card.linkTitle,
+    card.linkUrl,
+    card.attachmentName,
+    card.attachmentUrl,
+    card.attachmentMime,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function trackId(seenIds, issues, id, label) {
@@ -1596,6 +1692,19 @@ function validateCard(projectId, setId, card, knownImageIds, issues, trashId) {
       trashId,
       imageId,
       message: `Card references missing image asset ${imageId}.`,
+    });
+  }
+  const attachmentId = getImageIdFromUrl(card.attachmentUrl);
+  if (attachmentId && knownImageIds && !knownImageIds.has(attachmentId)) {
+    issues.push({
+      severity: "warning",
+      code: "missing_attachment_asset",
+      projectId,
+      setId,
+      cardId: card.id,
+      trashId,
+      imageId: attachmentId,
+      message: `Card references missing attachment asset ${attachmentId}.`,
     });
   }
 }

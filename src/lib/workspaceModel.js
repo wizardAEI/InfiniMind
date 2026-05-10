@@ -1,4 +1,4 @@
-export const cardTypeIds = ["text", "image", "link"];
+export const cardTypeIds = ["text", "image", "link", "attachment"];
 export const imageStyles = ["scan", "topography", "wave", "cells", "portal", "signal"];
 export const storageKey = "infinimind.workspace-state.v1";
 export const legacyStorageKey = "infinimind.field-state.v1";
@@ -19,6 +19,10 @@ export function createSeedCard(id = "card-1", note) {
     imageTone: "mono",
     linkUrl: "https://example.com",
     linkTitle: "Reference path",
+    attachmentUrl: "",
+    attachmentName: "",
+    attachmentMime: "",
+    attachmentSize: 0,
   };
 }
 
@@ -32,6 +36,10 @@ export function createBlankCard(id = createCardId()) {
     imageTone: "mono",
     linkUrl: "",
     linkTitle: "",
+    attachmentUrl: "",
+    attachmentName: "",
+    attachmentMime: "",
+    attachmentSize: 0,
   };
 }
 
@@ -266,6 +274,10 @@ export function normalizeCard(card) {
     imageTone: card?.imageTone === "color" ? "color" : "mono",
     linkUrl: typeof card?.linkUrl === "string" ? card.linkUrl : "",
     linkTitle: typeof card?.linkTitle === "string" ? card.linkTitle : "",
+    attachmentUrl: typeof card?.attachmentUrl === "string" ? card.attachmentUrl : "",
+    attachmentName: typeof card?.attachmentName === "string" ? card.attachmentName : "",
+    attachmentMime: typeof card?.attachmentMime === "string" ? card.attachmentMime : "",
+    attachmentSize: Number.isFinite(card?.attachmentSize) ? card.attachmentSize : 0,
   };
 }
 
@@ -395,6 +407,7 @@ export function getCardPreview(card) {
   if (!card) return "Empty clue set";
   if (card.type === "image") return card.imageUrl ? "Image evidence attached" : "Image placeholder";
   if (card.type === "link") return card.linkTitle || card.linkUrl || "Reference link";
+  if (card.type === "attachment") return card.attachmentName || card.attachmentUrl || "Attachment";
   return card.note || "No memo yet";
 }
 
@@ -459,8 +472,8 @@ export function collectImageIds(value, ids = new Set()) {
     return ids;
   }
 
-  if (typeof value.imageUrl === "string") {
-    const imageId = getImageIdFromUrl(value.imageUrl);
+  for (const assetUrl of [value.imageUrl, value.attachmentUrl]) {
+    const imageId = getImageIdFromUrl(assetUrl);
     if (imageId) {
       ids.add(imageId);
     }

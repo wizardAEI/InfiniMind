@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.desktop/
+.codex/
 
 .DS_Store
 *.log

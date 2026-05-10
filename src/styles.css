@@ -447,7 +447,8 @@ button {
 .type-switch,
 .add-card-button,
 .delete-card-button,
-.image-input-row button {
+.image-input-row button,
+.attachment-input-row button {
   border: 1px solid rgba(7, 7, 7, 0.9);
   background: rgba(244, 244, 240, 0.82);
   backdrop-filter: blur(16px);
@@ -457,6 +458,7 @@ button {
 .add-card-button,
 .delete-card-button,
 .image-input-row button,
+.attachment-input-row button,
 .type-switch button {
   display: grid;
   width: 38px;
@@ -474,6 +476,7 @@ button {
 .add-card-button:not(:disabled):hover,
 .delete-card-button:not(:disabled):hover,
 .image-input-row button:hover,
+.attachment-input-row button:hover,
 .type-switch button:not(:disabled):hover {
   color: #fff;
   background: var(--blue);
@@ -843,6 +846,10 @@ button {
   border-color: rgba(0, 92, 255, 0.8);
 }
 
+.summary-type-dot.type-dot-attachment[data-active="true"] {
+  background: rgba(7, 7, 7, 0.72);
+}
+
 .summary-set-body p {
   display: -webkit-box;
   min-height: 56px;
@@ -1020,7 +1027,7 @@ button {
 .card-positioner {
   position: absolute;
   left: 50%;
-  top: 78px;
+  top: 96px;
   contain: layout style;
   overflow: visible;
   transform-origin: center center;
@@ -1233,9 +1240,14 @@ button {
   -webkit-text-stroke-color: rgba(0, 92, 255, 0.82);
 }
 
+.type-attachment span + span {
+  -webkit-text-stroke-color: rgba(7, 7, 7, 0.58);
+}
+
 .text-surface,
 .image-surface,
-.link-surface {
+.link-surface,
+.attachment-surface {
   position: relative;
   z-index: 1;
 }
@@ -1245,7 +1257,8 @@ button {
   min-height: 100%;
 }
 
-.link-surface label span {
+.link-surface label span,
+.attachment-surface label span {
   font-size: 10px;
   font-weight: 860;
   color: var(--blue);
@@ -1574,22 +1587,34 @@ textarea {
 }
 
 .image-input-row input,
-.link-surface input {
+.attachment-input-row input,
+.link-surface input,
+.attachment-surface input {
   height: 38px;
   padding: 0 11px;
   font-size: 12px;
   font-weight: 720;
 }
 
-.link-surface {
+.link-surface,
+.attachment-surface {
   display: grid;
   align-content: start;
   gap: 17px;
 }
 
-.link-surface label {
+.attachment-surface {
+  gap: 9px;
+}
+
+.link-surface label,
+.attachment-surface label {
   display: grid;
   gap: 8px;
+}
+
+.attachment-surface label {
+  gap: 5px;
 }
 
 .link-surface a {
@@ -1622,6 +1647,74 @@ textarea {
   line-height: 0.94;
 }
 
+.attachment-preview {
+  display: grid;
+  min-height: 88px;
+  align-content: end;
+  gap: 5px;
+  border: 1px solid rgba(7, 7, 7, 0.9);
+  padding: 12px;
+  background:
+    linear-gradient(90deg, rgba(7, 7, 7, 0.08) 1px, transparent 1px) 0 0 / 18px 18px,
+    linear-gradient(180deg, rgba(7, 7, 7, 0.08) 1px, transparent 1px) 0 0 / 18px 18px,
+    rgba(229, 229, 223, 0.94);
+}
+
+.attachment-preview svg {
+  color: var(--blue);
+}
+
+.attachment-preview strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 20px;
+  font-weight: 880;
+  line-height: 0.96;
+}
+
+.attachment-preview span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.attachment-input-row {
+  display: grid;
+  grid-template-columns: 1fr 38px;
+  gap: 8px;
+}
+
+.attachment-surface > input[type="file"] {
+  display: none;
+}
+
+.attachment-open-button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid rgba(7, 7, 7, 0.9);
+  padding: 0 14px;
+  color: #fff;
+  background: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 860;
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.attachment-open-button:not(:disabled):hover {
+  background: var(--blue);
+  transform: translateY(-2px);
+}
+
+.attachment-open-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .card-actions {
   display: flex;
   min-height: 60px;
@@ -1634,7 +1727,7 @@ textarea {
 
 .type-switch {
   display: grid;
-  grid-template-columns: repeat(3, 38px);
+  grid-template-columns: repeat(4, 38px);
   overflow: hidden;
 }
 
@@ -2194,7 +2287,7 @@ textarea {
   }
 
   .card-positioner {
-    top: 70px;
+    top: 86px;
   }
 
   .set-title-input {

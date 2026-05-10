@@ -70,7 +70,41 @@ test("normalizeWorkspaceState supports nested organizations and scoped connectio
 test("collectImageIds finds nested InfiniMind image URLs", () => {
   const workspace = createDefaultWorkspaceState();
   workspace.projects[0].field.sets[0].cards[0].imageUrl = "infinimind-image://image-123";
+  workspace.projects[0].field.trash.cards.push({
+    id: "trash-card-1",
+    deletedAt: new Date().toISOString(),
+    sourceSetId: "set-1",
+    sourceSetTitle: "Set 01",
+    card: {
+      id: "card-attachment",
+      type: "attachment",
+      attachmentUrl: "infinimind-image://image-456",
+      attachmentName: "brief.pdf",
+    },
+  });
 
   assert.equal(getImageIdFromUrl("infinimind-image://image-123"), "image-123");
-  assert.deepEqual([...collectImageIds(workspace)], ["image-123"]);
+  assert.deepEqual([...collectImageIds(workspace)], ["image-123", "image-456"]);
+});
+
+test("normalizeWorkspaceState keeps attachment cards", () => {
+  const workspace = normalizeWorkspaceState({
+    fieldTitle: "Attachments",
+    cards: [
+      {
+        id: "card-attachment",
+        type: "attachment",
+        attachmentUrl: "https://example.com/brief.pdf",
+        attachmentName: "brief.pdf",
+        attachmentMime: "application/pdf",
+        attachmentSize: 4096,
+      },
+    ],
+    activeId: "card-attachment",
+  });
+  const card = workspace.projects[0].field.sets[0].cards[0];
+
+  assert.equal(card.type, "attachment");
+  assert.equal(card.attachmentName, "brief.pdf");
+  assert.equal(card.attachmentSize, 4096);
 });
