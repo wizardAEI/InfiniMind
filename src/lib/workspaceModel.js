@@ -282,18 +282,7 @@ export function normalizeCard(card) {
 }
 
 export function normalizeConnection(connection) {
-  const fromNodeId =
-    typeof connection?.fromNodeId === "string"
-      ? connection.fromNodeId
-      : typeof connection?.fromSetId === "string"
-        ? connection.fromSetId
-        : null;
-  const toNodeId =
-    typeof connection?.toNodeId === "string"
-      ? connection.toNodeId
-      : typeof connection?.toSetId === "string"
-        ? connection.toSetId
-        : null;
+  const { fromNodeId, toNodeId } = getConnectionNodeIds(connection);
 
   if (!fromNodeId || !toNodeId) {
     return null;
@@ -304,6 +293,23 @@ export function normalizeConnection(connection) {
     scopeId: typeof connection?.scopeId === "string" ? connection.scopeId : null,
     fromNodeId,
     toNodeId,
+  };
+}
+
+export function getConnectionNodeIds(connection) {
+  return {
+    fromNodeId:
+      typeof connection?.fromNodeId === "string"
+        ? connection.fromNodeId
+        : typeof connection?.fromSetId === "string"
+          ? connection.fromSetId
+          : null,
+    toNodeId:
+      typeof connection?.toNodeId === "string"
+        ? connection.toNodeId
+        : typeof connection?.toSetId === "string"
+          ? connection.toSetId
+          : null,
   };
 }
 
@@ -423,8 +429,7 @@ export function hasConnection(connections, fromNodeId, toNodeId, scopeId = null)
       return false;
     }
 
-    const from = connection.fromNodeId || connection.fromSetId;
-    const to = connection.toNodeId || connection.toSetId;
+    const { fromNodeId: from, toNodeId: to } = getConnectionNodeIds(connection);
     return (
       (from === fromNodeId && to === toNodeId) ||
       (from === toNodeId && to === fromNodeId)

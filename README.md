@@ -1,23 +1,28 @@
 # InfiniMind
 
-![InfiniMind canvas](docs/screenshots/optimized/canvas-field.png)
+![InfiniMind organization canvas](docs/screenshots/optimized/organization-canvas.png)
 
-InfiniMind is a local-first canvas for turning loose thoughts into connected card fields. It combines a visual workspace, nested organizations, recoverable trash, image/link/attachment cards, and a local MCP server so AI clients can read, organize, and safely update the same workspace.
+InfiniMind is a local-first thinking canvas for shaping loose ideas into connected card fields. Card sets stay tactile and inspectable; organizations appear as blurred clusters of schematic cards that suggest grouped material without exposing their internal layout on the parent canvas.
+
+It is built for people and AI clients working in the same private workspace: a desktop canvas, nested organizations, recoverable trash, Markdown export, and a local MCP server all read and write the same local project data.
 
 [中文说明](README.zh-CN.md)
 
 ## Highlights
 
-- **Canvas-first thinking**: arrange card sets on a zoomable field, connect ideas, and move between overview and detail.
-- **Nested organizations**: group related sets and child organizations into scoped workspaces without losing graph structure.
-- **Multiple card types**: text, image, link, and attachment cards live together inside each set.
-- **Recoverable edits**: cards, sets, and organizations move through trash before permanent deletion.
-- **Desktop storage**: Electron stores workspace state and imported images locally.
-- **MCP control surface**: AI clients can list projects, search, validate, create snapshots, apply dry-run batches, and write structured updates.
+- **Paper-like canvas**: work on a quiet grid with zoom, pan, connections, selectable nodes, and compact controls that stay out of the way.
+- **Clustered organizations**: turn related card sets or child organizations into stable scoped spaces. Each organization keeps a consistent blurred card-cluster mark on the parent canvas, no matter how complex the inside becomes.
+- **Nested focus**: open an organization to enter its own field, move back through breadcrumbs, and move organizations out again without breaking scoped links.
+- **Mixed card sets**: collect text, image, link, and attachment cards inside each set while keeping the overview readable.
+- **Local desktop storage**: Electron stores workspace state in SQLite and keeps imported images as local files referenced by the workspace.
+- **Recoverable edits**: cards, sets, and organization subtrees go through trash before permanent deletion.
+- **AI-ready control surface**: MCP tools can list projects, search, validate, snapshot, dry-run batches, update structured content, and export projects as JSON or Markdown.
 
 ## Screenshots
 
 ![Project library](docs/screenshots/optimized/project-library.png)
+
+![Organization scope](docs/screenshots/optimized/organization-scope.png)
 
 ![MCP settings](docs/screenshots/optimized/mcp-settings.png)
 
@@ -45,6 +50,16 @@ Build for production:
 ```sh
 npm run build
 ```
+
+## Desktop Workflow
+
+- Create projects from the project library.
+- Add card sets to the field, then open a set to edit individual cards.
+- Select multiple nodes and create an organization from the selection.
+- Double-click an organization cluster to enter its scoped canvas.
+- Use breadcrumbs to move between root and nested organizations.
+- Export the active project as Markdown from the field toolbar.
+- Switch appearance from **Settings -> Appearance**.
 
 ## MCP Setup
 
@@ -90,7 +105,7 @@ npm run mcp:inspect
 
 ## MCP Capabilities
 
-The server includes read tools for project listing, project export, search, workspace validation, and snapshots. Write operations cover projects, sets, cards, connections, organizations, image imports, restore flows, and up to 50 batched operations through `infinimind_apply_operations`.
+The server includes read tools for project listing, project export, Markdown export, search, workspace validation, graph views, and snapshots. Write operations cover projects, sets, cards, connections, organizations, image imports, restore flows, and up to 50 batched operations through `infinimind_apply_operations`.
 
 Safety model:
 
@@ -116,10 +131,10 @@ npm test             # run node:test suites
 
 ```text
 src/                  React app and canvas UI
-src/lib/              Workspace model, normalization, validation helpers
+src/lib/              Workspace model, normalization, validation, Markdown export helpers
 electron/             Desktop shell, local SQLite state, image asset protocol
 mcp/                  MCP server, tools, resources, prompts, operations
-tests/                Workspace model and MCP storage tests
+tests/                Workspace model, MCP, and export tests
 assets/               App icon assets
 docs/screenshots/     README screenshot assets
 ```

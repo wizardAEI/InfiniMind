@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, shell } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, shell } = require("electron");
 const fs = require("node:fs/promises");
 const fsSync = require("node:fs");
 const path = require("node:path");
@@ -67,6 +67,19 @@ function readMcpConfig() {
 
 function escapeTomlString(value) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function sanitizeMarkdownFilename(value) {
+  const baseName = String(value || "").trim() || "infinimind-project.md";
+  const safeName =
+    baseName
+      .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, "-")
+      .replace(/\s+/g, " ")
+      .replace(/^[.\s-]+/, "")
+      .replace(/[. ]+$/g, "")
+      .trim() || "infinimind-project";
+
+  return safeName.toLowerCase().endsWith(".md") ? safeName : `${safeName}.md`;
 }
 
 function getDatabase() {
@@ -231,6 +244,30 @@ async function openAsset(_event, targetUrl) {
   return { ok: true };
 }
 
+async function exportMarkdown(_event, input = {}) {
+  const markdown = typeof input?.markdown === "string" ? input.markdown : "";
+  if (!markdown) {
+    throw new Error("Missing Markdown content.");
+  }
+
+  const result = await dialog.showSaveDialog({
+    title: "Export Markdown",
+    defaultPath: sanitizeMarkdownFilename(input?.suggestedFilename),
+    filters: [
+      { name: "Markdown", extensions: ["md"] },
+      { name: "All Files", extensions: ["*"] },
+    ],
+  });
+
+  if (result.canceled || !result.filePath) {
+    return { ok: false, cancelled: true };
+  }
+
+  const targetPath = path.extname(result.filePath) ? result.filePath : `${result.filePath}.md`;
+  await fs.writeFile(targetPath, markdown, "utf8");
+  return { ok: true, path: targetPath };
+}
+
 async function pruneUnusedImages(state) {
   const referencedIds = collectImageIds(state);
   const rows = getDatabase().prepare("SELECT id, filename FROM image_assets").all();
@@ -349,6 +386,95 @@ function createImageId() {
   return `image-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function createApplicationMenu() {
+  const isMac = process.platform === "darwin";
+  const template = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" },
+              { type: "separator" },
+              { role: "services" },
+              { type: "separator" },
+              { role: "hide" },
+              { role: "hideOthers" },
+              { role: "unhide" },
+              { type: "separator" },
+              { role: "quit" },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "Export Markdown",
+          accelerator: "CmdOrCtrl+Shift+E",
+          click(_menuItem, browserWindow) {
+            const targetWindow = browserWindow || BrowserWindow.getFocusedWindow();
+            targetWindow?.webContents.send("markdown:export-requested");
+          },
+        },
+        { type: "separator" },
+        isMac ? { role: "close" } : { role: "quit" },
+      ],
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        ...(isMac
+          ? [
+              { role: "pasteAndMatchStyle" },
+              { role: "delete" },
+              { role: "selectAll" },
+              { type: "separator" },
+              {
+                label: "Speech",
+                submenu: [{ role: "startSpeaking" }, { role: "stopSpeaking" }],
+              },
+            ]
+          : [{ role: "delete" }, { type: "separator" }, { role: "selectAll" }]),
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { role: "forceReload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
+    },
+    {
+      label: "Window",
+      submenu: [
+        { role: "minimize" },
+        ...(isMac ? [{ role: "zoom" }, { type: "separator" }, { role: "front" }] : [{ role: "close" }]),
+      ],
+    },
+    {
+      role: "help",
+      submenu: [],
+    },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 function createWindow() {
   const pngIconPath = path.join(__dirname, "..", "assets", "icon.png");
   const icnsIconPath = path.join(__dirname, "..", "assets", "icon.icns");
@@ -393,11 +519,13 @@ ipcMain.handle("field:path", () => getStatePath());
 ipcMain.handle("field:metadata", readFieldMetadata);
 ipcMain.handle("image:import", importImage);
 ipcMain.handle("asset:open", openAsset);
+ipcMain.handle("markdown:export", exportMarkdown);
 ipcMain.handle("app:mcp-config", readMcpConfig);
 
 app.whenReady().then(() => {
   getDatabase();
   protocol.handle(imageProtocol, handleImageRequest);
+  createApplicationMenu();
   createWindow();
 
   app.on("activate", () => {

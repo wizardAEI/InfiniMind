@@ -6,6 +6,7 @@ import {
   createDefaultWorkspaceState,
   createOrganization,
   dedupeConnections,
+  getConnectionNodeIds,
   getImageIdFromUrl,
   normalizeWorkspaceState,
 } from "../src/lib/workspaceModel.js";
@@ -37,6 +38,17 @@ test("dedupeConnections treats connections as undirected", () => {
     connections.map((connection) => connection.id),
     ["a", "c"]
   );
+});
+
+test("getConnectionNodeIds supports legacy set endpoints", () => {
+  assert.deepEqual(getConnectionNodeIds({ fromSetId: "set-a", toSetId: "set-b" }), {
+    fromNodeId: "set-a",
+    toNodeId: "set-b",
+  });
+  assert.deepEqual(getConnectionNodeIds({ fromNodeId: "organization-a", toNodeId: "set-b" }), {
+    fromNodeId: "organization-a",
+    toNodeId: "set-b",
+  });
 });
 
 test("normalizeWorkspaceState supports nested organizations and scoped connections", () => {
