@@ -293,7 +293,12 @@ export function normalizeConnection(connection) {
     scopeId: typeof connection?.scopeId === "string" ? connection.scopeId : null,
     fromNodeId,
     toNodeId,
+    label: normalizeConnectionLabel(connection?.label),
   };
+}
+
+export function normalizeConnectionLabel(value) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export function getConnectionNodeIds(connection) {

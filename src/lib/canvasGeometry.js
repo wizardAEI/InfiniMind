@@ -1,6 +1,6 @@
 import { clamp, clampZoom, getConnectionNodeIds, minZoom } from "./workspaceModel.js";
 
-export const wallSetSize = { width: 216, height: 132 };
+export const wallSetSize = { width: 184, height: 108 };
 
 export const organizationNodeSize = { width: 300, height: 216 };
 
@@ -47,6 +47,43 @@ export function getConnectionDeleteButtonPosition({
   return {
     left: clamp(screenX, 8, Math.max(8, safeViewportWidth - buttonSize - 8)),
     top: clamp(screenY, 8, Math.max(8, viewportHeight - buttonSize - 8)),
+  };
+}
+
+export function getConnectionControlPosition({
+  connection,
+  nodeLookup,
+  editingSetId,
+  dragPreview,
+  pan,
+  zoom,
+  viewportWidth,
+}) {
+  if (!connection) {
+    return null;
+  }
+
+  const { fromNode, toNode } = getConnectionLayerNodes(connection, nodeLookup, dragPreview);
+  if (!fromNode || !toNode) {
+    return null;
+  }
+
+  const from = getNodeCenter(fromNode, editingSetId === fromNode.id);
+  const to = getNodeCenter(toNode, editingSetId === toNode.id);
+  const safeViewportWidth = viewportWidth || (typeof window === "undefined" ? 1280 : window.innerWidth);
+  const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
+  const controlWidth = 260;
+  const controlHeight = 34;
+  const midpoint = {
+    x: (from.x + to.x) / 2,
+    y: (from.y + to.y) / 2,
+  };
+  const screenX = safeViewportWidth / 2 + pan.x + midpoint.x * zoom - controlWidth / 2;
+  const screenY = viewportHeight / 2 + pan.y + midpoint.y * zoom - controlHeight / 2 - 42;
+
+  return {
+    left: clamp(screenX, 8, Math.max(8, safeViewportWidth - controlWidth - 8)),
+    top: clamp(screenY, 8, Math.max(8, viewportHeight - controlHeight - 8)),
   };
 }
 

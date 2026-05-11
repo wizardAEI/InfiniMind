@@ -58,6 +58,7 @@ test("projectToMarkdown exports cards, organizations, connections, and trash", (
       scopeId: "organization-a",
       fromNodeId: "set-a",
       toNodeId: "set-b",
+      label: "supports",
     },
   ];
   field.trash = {
@@ -94,7 +95,7 @@ test("projectToMarkdown exports cards, organizations, connections, and trash", (
   assert.match(markdown, /URL: https:\/\/example\.com\/docs/);
   assert.match(markdown, /Image: infinimind-image:\/\/image-123/);
   assert.match(markdown, /Name: brief\.pdf/);
-  assert.match(markdown, /- \[organization-a\] Sources -> Findings \(connection-a\)/);
+  assert.match(markdown, /- \[organization-a\] Sources -> Findings - supports \(connection-a\)/);
   assert.match(markdown, /## Trash/);
   assert.match(markdown, /- Set: Old Set \(trash-set-a, 1 cards\)/);
   assert.match(markdown, /- Card: Deleted idea \(trash-card-a, from Sources\)/);

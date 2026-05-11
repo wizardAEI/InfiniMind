@@ -38,6 +38,7 @@ export const operationTypes = [
   "trash_card",
   "restore_card",
   "create_connection",
+  "update_connection",
   "delete_connection",
 ];
 
@@ -115,6 +116,7 @@ export function projectToGraph(project) {
         scopeId: connection.scopeId || null,
         fromNodeId,
         toNodeId,
+        label: connection.label || "",
       })),
   };
 }
@@ -192,6 +194,29 @@ export function searchWorkspace(workspace, options = {}) {
       }
     }
 
+    if (query) {
+      const nodeById = new Map([
+        ...(project.field?.organizations || []).map((organization) => [organization.id, organization]),
+        ...(project.field?.sets || []).map((set) => [set.id, set]),
+      ]);
+      for (const connection of project.field?.connections || []) {
+        if (!matchesText(connection.label, query)) {
+          continue;
+        }
+        const { fromNodeId, toNodeId } = getConnectionNodeIdsForOperations(connection);
+        const fromNode = nodeById.get(fromNodeId);
+        const toNode = nodeById.get(toNodeId);
+        matches.push({
+          kind: "connection",
+          projectId: project.id,
+          connectionId: connection.id,
+          title: connection.label,
+          preview: `${fromNode?.title || fromNodeId} -> ${toNode?.title || toNodeId}`,
+          resource: `infinimind://project/${project.id}/graph`,
+        });
+      }
+    }
+
     if (!includeTrash) {
       continue;
     }
@@ -226,6 +251,21 @@ export function searchWorkspace(workspace, options = {}) {
         });
       }
     }
+
+    for (const item of trash.organizations) {
+      const organizationTitle = item.organization?.title || "";
+      const descendantText = (item.organizations || []).map((organization) => organization.title).join("\n");
+      if (matchesText(`${organizationTitle}\n${descendantText}`, query)) {
+        matches.push({
+          kind: "trash-organization",
+          projectId: project.id,
+          trashId: item.id,
+          title: organizationTitle || item.id,
+          preview: `${(item.organizations || []).length} child organizations, ${(item.sets || []).length} sets`,
+          resource: `infinimind://project/${project.id}/trash`,
+        });
+      }
+    }
   }
 
   return matches.slice(0, Math.min(Math.max(Number(options.limit) || 50, 1), 200));
@@ -234,7 +274,7 @@ export function searchWorkspace(workspace, options = {}) {
 export function validateWorkspace(workspace, options = {}) {
   const normalized = normalizeWorkspaceState(workspace);
   const issues = [];
-  const seenIds = new Map();
+  const projectIds = new Map();
   const knownImageIds = Array.isArray(options.imageAssets) ? new Set(options.imageAssets.map((asset) => asset.id)) : null;
 
   if (normalized.projects.length === 0) {
@@ -246,7 +286,9 @@ export function validateWorkspace(workspace, options = {}) {
   }
 
   for (const project of normalized.projects) {
-    trackId(seenIds, issues, project.id, `project:${project.name}`);
+    trackId(projectIds, issues, project.id, `project:${project.name}`);
+    const seenIds = new Map();
+    const trashIds = new Map();
     const field = project.field || createDefaultState(project.name);
 
     if (field.zoom < minZoom || field.zoom > maxZoom) {
@@ -349,16 +391,14 @@ export function validateWorkspace(workspace, options = {}) {
 
     const trash = normalizeTrash(field.trash);
     for (const item of trash.cards) {
-      trackId(seenIds, issues, item.id, "trash-card");
+      trackId(trashIds, issues, item.id, `project:${project.id}:trash-card`);
       validateCard(project.id, item.sourceSetId, item.card, knownImageIds, issues, item.id);
     }
     for (const item of trash.sets) {
-      trackId(seenIds, issues, item.id, "trash-set");
-      trackId(seenIds, issues, item.set.id, `trash-set-original:${item.set.title}`);
+      trackId(trashIds, issues, item.id, `project:${project.id}:trash-set`);
     }
     for (const item of trash.organizations) {
-      trackId(seenIds, issues, item.id, "trash-organization");
-      trackId(seenIds, issues, item.organization.id, `trash-organization-original:${item.organization.title}`);
+      trackId(trashIds, issues, item.id, `project:${project.id}:trash-organization`);
     }
   }
 

@@ -63,6 +63,10 @@ Use InfiniMind MCP to add five connected card sets to the active project, then l
 ```
 
 ```text
+Use InfiniMind MCP to name the relationship on connection-123 "supports" and search for connections named "supports".
+```
+
+```text
 Use InfiniMind MCP to create a card set at canvas position { "x": 120, "y": -80 } with one seed card about launch risks.
 ```
 

@@ -10,7 +10,7 @@ It is built for people and AI clients working in the same private workspace: a d
 
 ## Highlights
 
-- **Paper-like canvas**: work on a quiet grid with zoom, pan, connections, selectable nodes, and compact controls that stay out of the way.
+- **Paper-like canvas**: work on a quiet grid with zoom, pan, named connections, selectable nodes, and compact controls that stay out of the way.
 - **Clustered organizations**: turn related card sets or child organizations into stable scoped spaces. Each organization keeps a consistent blurred card-cluster mark on the parent canvas, no matter how complex the inside becomes.
 - **Nested focus**: open an organization to enter its own field, move back through breadcrumbs, and move organizations out again without breaking scoped links.
 - **Mixed card sets**: collect text, image, link, and attachment cards inside each set while keeping the overview readable.
@@ -105,7 +105,7 @@ npm run mcp:inspect
 
 ## MCP Capabilities
 
-The server includes read tools for project listing, project export, Markdown export, search, workspace validation, graph views, and snapshots. Write operations cover projects, sets, cards, connections, organizations, image imports, restore flows, and up to 50 batched operations through `infinimind_apply_operations`.
+The server includes read tools for project listing, project export, Markdown export, search, workspace validation, graph views, and snapshots. Write operations cover projects, sets, cards, named connections, organizations, image imports, restore flows, and up to 50 batched operations through `infinimind_apply_operations`.
 
 Safety model:
 

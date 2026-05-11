@@ -71,7 +71,8 @@ export function projectToMarkdown(project, options = {}) {
       const { fromNodeId, toNodeId } = getConnectionNodeIds(connection);
       const from = nodeById.get(fromNodeId);
       const to = nodeById.get(toNodeId);
-      lines.push(`- [${connection.scopeId || "root"}] ${from?.title || fromNodeId} -> ${to?.title || toNodeId} (${connection.id})`);
+      const label = connection.label ? ` - ${connection.label}` : "";
+      lines.push(`- [${connection.scopeId || "root"}] ${from?.title || fromNodeId} -> ${to?.title || toNodeId}${label} (${connection.id})`);
     }
     lines.push("");
   }

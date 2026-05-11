@@ -16,6 +16,7 @@ import {
   maxZoom,
   minZoom,
   normalizeCard,
+  normalizeConnectionLabel,
   normalizeTrash,
 } from "../src/lib/workspaceModel.js";
 import { getConnectionNodeIdsForOperations, getProjectOrThrow, workspaceResourceLinks } from "./operationShared.mjs";
@@ -108,18 +109,21 @@ function createSetOperation(workspace, input) {
 
 function updateSetOperation(workspace, input) {
   const project = getProjectOrThrow(workspace, input.projectId);
+  const requestedParentId = input.parentId === undefined ? undefined : input.parentId || null;
+  if (requestedParentId !== undefined) {
+    moveNodeOperation(workspace, {
+      ...input,
+      nodeId: input.setId,
+      targetOrganizationId: requestedParentId,
+    });
+  }
+
   const set = getSetOrThrow(project, input.setId);
   if (typeof input.title === "string") {
     set.title = input.title;
   }
-  if (input.position) {
+  if (input.position && requestedParentId === undefined) {
     set.position = normalizePosition(input.position, set.position);
-  }
-  if (input.parentId !== undefined) {
-    if (input.parentId !== null) {
-      getOrganizationOrThrow(project, input.parentId);
-    }
-    set.parentId = input.parentId || null;
   }
   if (typeof input.activeCardId === "string") {
     if (!set.cards.some((card) => card.id === input.activeCardId)) {
@@ -231,24 +235,17 @@ function restoreSetOperation(workspace, input) {
   const restoredSet = existingSetIds.has(oldSetId)
     ? { ...item.set, id: createSetId(), title: `${item.set.title} Restored` }
     : item.set;
-  const setIdsAfterRestore = new Set([...field.sets.map((set) => set.id), restoredSet.id]);
   const restoredConnections = item.connections
     .map((connection) => ({
       ...connection,
       id: createConnectionId(),
       fromNodeId: connection.fromNodeId === oldSetId ? restoredSet.id : connection.fromNodeId,
       toNodeId: connection.toNodeId === oldSetId ? restoredSet.id : connection.toNodeId,
-    }))
-    .filter(
-      (connection) =>
-        connection.fromNodeId !== connection.toNodeId &&
-        setIdsAfterRestore.has(connection.fromNodeId) &&
-        setIdsAfterRestore.has(connection.toNodeId)
-    );
+    }));
 
   field.sets.push(restoredSet);
   field.activeSetId = restoredSet.id;
-  field.connections = dedupeConnections([...field.connections, ...restoredConnections]);
+  field.connections = dedupeConnections([...field.connections, ...filterValidConnectionsForProject(project, restoredConnections)]);
   field.trash = {
     ...trash,
     sets: trash.sets.filter((trashItem) => trashItem.id !== input.trashId),
@@ -288,21 +285,21 @@ function createOrganizationOperation(workspace, input) {
 
 function updateOrganizationOperation(workspace, input) {
   const project = getProjectOrThrow(workspace, input.projectId);
+  const requestedParentId = input.parentId === undefined ? undefined : input.parentId || null;
+  if (requestedParentId !== undefined) {
+    moveNodeOperation(workspace, {
+      ...input,
+      nodeId: input.organizationId,
+      targetOrganizationId: requestedParentId,
+    });
+  }
+
   const organization = getOrganizationOrThrow(project, input.organizationId);
   if (typeof input.title === "string") {
     organization.title = input.title;
   }
-  if (input.position) {
+  if (input.position && requestedParentId === undefined) {
     organization.position = normalizePosition(input.position, organization.position);
-  }
-  if (input.parentId !== undefined) {
-    if (input.parentId !== null) {
-      getOrganizationOrThrow(project, input.parentId);
-      if (input.parentId === organization.id || isDescendantOrganization(input.parentId, organization.id, project.field.organizations)) {
-        throw new Error("Cannot move an organization into itself or its descendant.");
-      }
-    }
-    organization.parentId = input.parentId || null;
   }
   if (input.pan) {
     organization.pan = normalizePosition(input.pan, organization.pan);
@@ -460,9 +457,14 @@ function restoreOrganizationOperation(workspace, input) {
     throw new Error(`Trash organization not found: ${input.trashId}`);
   }
 
+  assertNoRestoreNodeConflicts(project, [item.organization, ...(item.organizations || [])], item.sets || []);
   field.organizations.push(item.organization, ...(item.organizations || []));
   field.sets.push(...(item.sets || []));
-  field.connections = dedupeConnections([...field.connections, ...(item.connections || [])]);
+  const restoredConnections = (item.connections || []).map((connection) => ({
+    ...connection,
+    id: createConnectionId(),
+  }));
+  field.connections = dedupeConnections([...field.connections, ...filterValidConnectionsForProject(project, restoredConnections)]);
   field.trash = {
     ...trash,
     organizations: trash.organizations.filter((trashItem) => trashItem.id !== input.trashId),
@@ -726,10 +728,19 @@ function createConnectionOperation(workspace, input) {
     scopeId,
     fromNodeId,
     toNodeId,
+    label: normalizeConnectionLabel(input.label),
   };
   project.field.connections.push(connection);
   touchProject(project);
   return change("create_connection", project.id, "Created connection.", workspaceResourceLinks(project.id));
+}
+
+function updateConnectionOperation(workspace, input) {
+  const project = getProjectOrThrow(workspace, input.projectId);
+  const connection = getConnectionOrThrow(project, input.connectionId);
+  connection.label = normalizeConnectionLabel(input.label);
+  touchProject(project);
+  return change("update_connection", project.id, "Updated connection.", workspaceResourceLinks(project.id));
 }
 
 function deleteConnectionOperation(workspace, input) {
@@ -769,6 +780,14 @@ function getSetOrThrow(project, setId) {
     throw new Error(`Set not found: ${setId}`);
   }
   return set;
+}
+
+function getConnectionOrThrow(project, connectionId) {
+  const connection = project.field?.connections?.find((item) => item.id === connectionId);
+  if (!connection) {
+    throw new Error(`Connection not found: ${connectionId}`);
+  }
+  return connection;
 }
 
 function getOrganizationOrThrow(project, organizationId) {
@@ -823,6 +842,49 @@ function normalizePosition(position, fallback) {
     x: Number.isFinite(position?.x) ? position.x : fallback.x,
     y: Number.isFinite(position?.y) ? position.y : fallback.y,
   };
+}
+
+function filterValidConnectionsForProject(project, connections = []) {
+  const nodeParents = new Map([
+    ...project.field.sets.map((set) => [set.id, set.parentId || null]),
+    ...project.field.organizations.map((organization) => [organization.id, organization.parentId || null]),
+  ]);
+
+  return connections
+    .map((connection) => {
+      const { fromNodeId, toNodeId } = getConnectionNodeIdsForOperations(connection);
+      return {
+        ...connection,
+        scopeId: connection.scopeId || null,
+        fromNodeId,
+        toNodeId,
+      };
+    })
+    .filter((connection) => {
+      if (!connection.fromNodeId || !connection.toNodeId || connection.fromNodeId === connection.toNodeId) {
+        return false;
+      }
+      if (!nodeParents.has(connection.fromNodeId) || !nodeParents.has(connection.toNodeId)) {
+        return false;
+      }
+      return (
+        (nodeParents.get(connection.fromNodeId) || null) === connection.scopeId &&
+        (nodeParents.get(connection.toNodeId) || null) === connection.scopeId
+      );
+    });
+}
+
+function assertNoRestoreNodeConflicts(project, organizations = [], sets = []) {
+  const activeNodeIds = new Set([
+    ...project.field.organizations.map((organization) => organization.id),
+    ...project.field.sets.map((set) => set.id),
+  ]);
+  const conflicts = [...organizations.map((organization) => organization.id), ...sets.map((set) => set.id)].filter((id) =>
+    activeNodeIds.has(id)
+  );
+  if (conflicts.length > 0) {
+    throw new Error(`Cannot restore organization because active nodes already use: ${conflicts.join(", ")}`);
+  }
 }
 
 function touchProject(project) {
@@ -884,5 +946,6 @@ export const operationHandlers = {
   "trash_card": trashCardOperation,
   "restore_card": restoreCardOperation,
   "create_connection": createConnectionOperation,
+  "update_connection": updateConnectionOperation,
   "delete_connection": deleteConnectionOperation,
 };

@@ -328,7 +328,7 @@ function markUnusedImagesForDeletion(database, state, userDataDir) {
 
 async function decodeImageInput(input) {
   if (!input || typeof input !== "object") {
-    throw new Error("Missing image input.");
+    throw new Error("Missing asset input.");
   }
 
   if (typeof input.filePath === "string" && input.filePath.trim()) {
@@ -340,9 +340,9 @@ async function decodeImageInput(input) {
   }
 
   if (typeof input.base64 === "string" && input.base64.trim()) {
-    const mime = normalizeImageMime(input.mime);
+    const mime = normalizeAssetMime(input.mime);
     const buffer = Buffer.from(input.base64, "base64");
-    validateImageBuffer(buffer, mime);
+    validateAssetBuffer(buffer);
     return {
       buffer,
       mime,
@@ -350,7 +350,7 @@ async function decodeImageInput(input) {
     };
   }
 
-  throw new Error("Provide filePath, dataUrl, or base64 image data.");
+  throw new Error("Provide filePath, dataUrl, or base64 asset data.");
 }
 
 async function readImageFile(filePath, fallbackMime) {
@@ -363,15 +363,15 @@ async function readImageFile(filePath, fallbackMime) {
     throw new Error("filePath must point to a file.");
   }
   if (stat.size <= 0) {
-    throw new Error("Image file is empty.");
+    throw new Error("Asset file is empty.");
   }
   if (stat.size > maxImportedImageBytes) {
-    throw new Error(`Image file exceeds ${maxImportedImageBytes} bytes.`);
+    throw new Error(`Asset file exceeds ${maxImportedImageBytes} bytes.`);
   }
 
-  const mime = normalizeImageMime(fallbackMime || getMimeFromPath(filePath));
+  const mime = normalizeAssetMime(fallbackMime || getMimeFromPath(filePath));
   const buffer = await fs.readFile(filePath);
-  validateImageBuffer(buffer, mime);
+  validateAssetBuffer(buffer);
 
   return {
     buffer,
@@ -383,14 +383,14 @@ async function readImageFile(filePath, fallbackMime) {
 function decodeDataUrlImage(dataUrl, fallbackMime, name) {
   const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
   if (!match) {
-    throw new Error("Invalid image data URL.");
+    throw new Error("Invalid asset data URL.");
   }
 
-  const mime = normalizeImageMime(match[1] || fallbackMime);
+  const mime = normalizeAssetMime(match[1] || fallbackMime);
   const isBase64 = Boolean(match[2]);
   const data = match[3] || "";
   const buffer = isBase64 ? Buffer.from(data, "base64") : Buffer.from(decodeURIComponent(data), "utf8");
-  validateImageBuffer(buffer, mime);
+  validateAssetBuffer(buffer);
 
   return {
     buffer,
@@ -399,24 +399,21 @@ function decodeDataUrlImage(dataUrl, fallbackMime, name) {
   };
 }
 
-function validateImageBuffer(buffer, mime) {
+function validateAssetBuffer(buffer) {
   if (buffer.byteLength <= 0) {
-    throw new Error("Image file is empty.");
+    throw new Error("Asset file is empty.");
   }
   if (buffer.byteLength > maxImportedImageBytes) {
-    throw new Error(`Image file exceeds ${maxImportedImageBytes} bytes.`);
-  }
-  if (!mime.startsWith("image/")) {
-    throw new Error("Only image MIME types are supported.");
+    throw new Error(`Asset file exceeds ${maxImportedImageBytes} bytes.`);
   }
 }
 
-function normalizeImageMime(mime) {
-  if (typeof mime === "string" && /^image\/[-+.\w]+$/.test(mime)) {
+function normalizeAssetMime(mime) {
+  if (typeof mime === "string" && /^[\w.+-]+\/[-+.\w]+$/.test(mime)) {
     return mime;
   }
 
-  return "image/png";
+  return "application/octet-stream";
 }
 
 function getMimeFromPath(filePath) {
@@ -429,9 +426,15 @@ function getMimeFromPath(filePath) {
     ".webp": "image/webp",
     ".svg": "image/svg+xml",
     ".avif": "image/avif",
+    ".pdf": "application/pdf",
+    ".txt": "text/plain",
+    ".md": "text/markdown",
+    ".json": "application/json",
+    ".csv": "text/csv",
+    ".zip": "application/zip",
   };
 
-  return mimeByExtension[extension] || "image/png";
+  return mimeByExtension[extension] || "application/octet-stream";
 }
 
 function getImageExtension(mime, name) {
@@ -447,8 +450,14 @@ function getImageExtension(mime, name) {
     "image/webp": ".webp",
     "image/svg+xml": ".svg",
     "image/avif": ".avif",
+    "application/pdf": ".pdf",
+    "text/plain": ".txt",
+    "text/markdown": ".md",
+    "application/json": ".json",
+    "text/csv": ".csv",
+    "application/zip": ".zip",
   };
-  return extensionByMime[mime] || ".img";
+  return extensionByMime[mime] || ".bin";
 }
 
 function createSnapshotId() {

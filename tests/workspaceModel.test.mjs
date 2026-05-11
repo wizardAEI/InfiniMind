@@ -8,6 +8,7 @@ import {
   dedupeConnections,
   getConnectionNodeIds,
   getImageIdFromUrl,
+  normalizeConnection,
   normalizeWorkspaceState,
 } from "../src/lib/workspaceModel.js";
 
@@ -29,7 +30,7 @@ test("normalizeWorkspaceState migrates legacy single-field state", () => {
 
 test("dedupeConnections treats connections as undirected", () => {
   const connections = dedupeConnections([
-    { id: "a", scopeId: null, fromNodeId: "set-1", toNodeId: "set-2" },
+    { id: "a", scopeId: null, fromNodeId: "set-1", toNodeId: "set-2", label: "depends on" },
     { id: "b", scopeId: null, fromNodeId: "set-2", toNodeId: "set-1" },
     { id: "c", scopeId: "organization-1", fromNodeId: "set-2", toNodeId: "set-1" },
   ]);
@@ -38,6 +39,7 @@ test("dedupeConnections treats connections as undirected", () => {
     connections.map((connection) => connection.id),
     ["a", "c"]
   );
+  assert.equal(connections[0].label, "depends on");
 });
 
 test("getConnectionNodeIds supports legacy set endpoints", () => {
@@ -49,6 +51,19 @@ test("getConnectionNodeIds supports legacy set endpoints", () => {
     fromNodeId: "organization-a",
     toNodeId: "set-b",
   });
+});
+
+test("normalizeConnection keeps a trimmed relationship label", () => {
+  assert.deepEqual(
+    normalizeConnection({ id: "connection-a", fromNodeId: "set-a", toNodeId: "set-b", label: "  supports  " }),
+    {
+      id: "connection-a",
+      scopeId: null,
+      fromNodeId: "set-a",
+      toNodeId: "set-b",
+      label: "supports",
+    }
+  );
 });
 
 test("normalizeWorkspaceState supports nested organizations and scoped connections", () => {
@@ -69,6 +84,7 @@ test("normalizeWorkspaceState supports nested organizations and scoped connectio
       scopeId: organization.id,
       fromNodeId: field.sets[0].id,
       toNodeId: "organization-missing",
+      label: "  invalid relation  ",
     },
   ];
 

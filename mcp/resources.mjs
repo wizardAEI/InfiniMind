@@ -168,6 +168,43 @@ export function registerResources(server) {
   );
 
   server.registerResource(
+    "organization-json",
+    new ResourceTemplate("infinimind://organization/{projectId}/{organizationId}", {
+      list: async () => ({
+        resources: withDatabase((database) =>
+          loadWorkspace(database).projects.flatMap((project) =>
+            project.field.organizations.map((organization) => ({
+              uri: `infinimind://organization/${project.id}/${organization.id}`,
+              name: `${project.name}: ${organization.title}`,
+              mimeType: "application/json",
+            }))
+          )
+        ),
+      }),
+    }),
+    {
+      title: "InfiniMind Organization",
+      description: "Single organization plus its direct children.",
+      mimeType: "application/json",
+    },
+    async (uri, { projectId, organizationId }) =>
+      jsonResource(
+        uri,
+        withDatabase((database) => {
+          const project = getProjectOrThrow(loadWorkspace(database), projectId);
+          const organization =
+            project.field.organizations.find((item) => item.id === organizationId) ||
+            resourceNotFound(`Organization not found: ${organizationId}`);
+          return {
+            organization,
+            childSets: project.field.sets.filter((set) => set.parentId === organization.id),
+            childOrganizations: project.field.organizations.filter((item) => item.parentId === organization.id),
+          };
+        })
+      )
+  );
+
+  server.registerResource(
     "card-json",
     new ResourceTemplate("infinimind://card/{projectId}/{setId}/{cardId}", {
       list: async () => ({

@@ -16,6 +16,7 @@ function ClueSetSummary({
   connectionSourceId,
   onEdit,
   onDelete,
+  onMoveOut,
   onDragStart,
   onConnectionStart,
   onConnectionMove,
@@ -59,6 +60,19 @@ function ClueSetSummary({
         >
           <Trash2 size={14} />
         </button>
+        {cardSet.parentId && (
+          <button
+            type="button"
+            title="Move card set out of organization"
+            aria-label={`Move ${cardSet.title} out of organization`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onMoveOut();
+            }}
+          >
+            <Ungroup size={14} />
+          </button>
+        )}
         <button
           className="connect-handle"
           type="button"

@@ -1,6 +1,6 @@
 import { MotionConfig } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CardField from "./components/CardField.jsx";
 import ProjectList from "./components/ProjectList.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
@@ -15,6 +15,7 @@ function App() {
   const [theme, setTheme] = useThemePreference();
   const [view, setView] = useState("projects");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const fieldTitleInputRef = useRef(null);
   const activeProject =
     workspaceState.projects.find((project) => project.id === workspaceState.activeProjectId) ||
     workspaceState.projects[0];
@@ -28,6 +29,16 @@ function App() {
       exportProjectMarkdown(activeProject);
     });
   }, [activeProject]);
+
+  useEffect(() => {
+    const input = fieldTitleInputRef.current;
+    if (!input || view !== "field") {
+      return;
+    }
+
+    input.style.height = "auto";
+    input.style.height = `${input.scrollHeight}px`;
+  }, [fieldState.fieldTitle, view]);
 
   function patchFieldState(patch) {
     if (!activeProject) {
@@ -125,14 +136,22 @@ function App() {
                 aria-label="Back to project list"
                 onClick={() => setView("projects")}
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} />
               </button>
-              <input
+              <textarea
+                ref={fieldTitleInputRef}
                 className="field-title-input"
                 aria-label="Field title"
                 value={fieldState.fieldTitle}
-                onChange={(event) => setFieldTitle(event.target.value)}
+                onChange={(event) => setFieldTitle(event.target.value.replace(/[\r\n]+/g, " "))}
                 onFocus={(event) => event.target.select()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  }
+                }}
+                rows={1}
                 spellCheck="false"
               />
             </header>

@@ -10,7 +10,7 @@ InfiniMind 是一个本地优先的思维画布，用来把零散想法整理成
 
 ## 亮点
 
-- **纸面式画布**：在安静网格上缩放、拖拽、连线、选择节点，紧凑工具栏不会打断工作流。
+- **纸面式画布**：在安静网格上缩放、拖拽、命名连线、选择节点，紧凑工具栏不会打断工作流。
 - **聚合 organization**：把相关 card set 或子 organization 收进稳定的作用域。无论内部变得多复杂，父级画布上都保持统一的模糊卡片簇标记。
 - **嵌套聚焦**：打开 organization 进入它自己的 field，通过面包屑返回，也可以把 organization 移出分组并保留作用域连接。
 - **混合 card set**：同一个 set 中可以放文字、图片、链接和附件，同时保持总览清爽。
@@ -105,7 +105,7 @@ npm run mcp:inspect
 
 ## MCP 能力
 
-Server 提供项目列表、项目导出、Markdown 导出、搜索、工作区校验、图视图、快照等读取工具；写入能力覆盖 project、set、card、connection、organization、图片导入、恢复流程，以及通过 `infinimind_apply_operations` 执行最多 50 步的批量操作。
+Server 提供项目列表、项目导出、Markdown 导出、搜索、工作区校验、图视图、快照等读取工具；写入能力覆盖 project、set、card、命名 connection、organization、图片导入、恢复流程，以及通过 `infinimind_apply_operations` 执行最多 50 步的批量操作。
 
 安全模型：
 

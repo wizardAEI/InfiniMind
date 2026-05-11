@@ -329,9 +329,9 @@ button {
 .project-title {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: clamp(26px, 3vw, 36px);
+  font-size: clamp(23px, 2.6vw, 32px);
   font-weight: 920;
-  line-height: 0.92;
+  line-height: 1.02;
   letter-spacing: 0;
   transition: color 180ms ease;
 }
@@ -417,31 +417,37 @@ button {
   left: clamp(22px, 4vw, 58px);
   z-index: 35;
   display: flex;
-  width: fit-content;
-  align-items: center;
-  gap: 12px;
+  width: min(76vw, 760px);
+  max-width: calc(100vw - 116px);
+  align-items: flex-start;
+  gap: 10px;
   -webkit-app-region: no-drag;
 }
 
 .back-to-projects {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   backdrop-filter: blur(16px);
 }
 
 .field-title-input {
-  width: min(38vw, 360px);
-  min-width: 176px;
+  width: 100%;
+  min-width: 0;
   border: 0;
   padding: 0;
   color: var(--ink);
   background: transparent;
-  font-size: clamp(24px, 3vw, 42px);
+  font-size: clamp(20px, 2.4vw, 34px);
   font-weight: 900;
-  line-height: 1;
+  line-height: 1.08;
   letter-spacing: 0;
+  overflow: hidden;
+  resize: none;
   text-transform: none;
   caret-color: var(--blue);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .field-title-input:focus {
@@ -515,9 +521,17 @@ button {
   max-width: calc(100vw - 44px);
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 10px 0;
   justify-content: flex-end;
   -webkit-app-region: no-drag;
+}
+
+.field-toolbar > * {
+  flex: 0 0 auto;
+}
+
+.field-toolbar > * + * {
+  margin-left: 10px;
 }
 
 .icon-button,
@@ -559,6 +573,59 @@ button {
   color: var(--text-inverse);
   background: var(--blue);
   transform: translateY(-2px);
+}
+
+.contextual-toolbar-actions {
+  display: flex;
+  height: 38px;
+  align-items: center;
+  overflow: hidden;
+  will-change: width, margin-left, opacity;
+}
+
+.contextual-toolbar-button {
+  flex: 0 0 38px;
+  min-width: 0;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgb(var(--ink-rgb) / 0.08);
+  transform-origin: 100% 50%;
+  will-change: opacity, transform;
+}
+
+.contextual-toolbar-button + .contextual-toolbar-button {
+  margin-left: 10px;
+}
+
+.field-toolbar-tooltip {
+  position: absolute;
+  z-index: 2;
+  max-width: min(220px, calc(100vw - 36px));
+  padding: 7px 9px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.82);
+  color: var(--ink);
+  background: rgb(var(--paper-rgb) / 0.96);
+  box-shadow: 0 14px 28px rgb(var(--ink-rgb) / 0.14);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0;
+  line-height: 1.2;
+  pointer-events: none;
+  text-align: center;
+  transform: translateX(-50%);
+  white-space: normal;
+}
+
+.field-toolbar-tooltip::before {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid rgb(var(--ink-rgb) / 0.82);
+  border-left: 1px solid rgb(var(--ink-rgb) / 0.82);
+  background: rgb(var(--paper-rgb) / 0.96);
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
 }
 
 .icon-button:disabled {
@@ -695,6 +762,81 @@ button {
   stroke-width: 2;
 }
 
+.connection-control {
+  position: absolute;
+  z-index: 32;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 30px;
+  align-items: center;
+  width: 260px;
+  height: 34px;
+  gap: 4px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.88);
+  color: var(--ink);
+  background: rgb(var(--paper-rgb) / 0.94);
+  backdrop-filter: blur(14px);
+  padding: 0 2px 0 9px;
+  box-shadow: 0 12px 28px rgb(var(--ink-rgb) / 0.12);
+}
+
+.connection-control input {
+  min-width: 0;
+  height: 28px;
+  border: 0;
+  padding: 0 4px;
+  color: var(--ink);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  outline: none;
+}
+
+.connection-control button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.connection-control button:hover {
+  color: var(--text-inverse);
+  background: var(--danger);
+}
+
+.connection-label-pill {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 245;
+  max-width: 220px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--ink-rgb) / 0.18);
+  border-radius: 4px;
+  color: var(--ink);
+  background: rgb(var(--paper-rgb) / 0.92);
+  padding: 5px 9px 6px;
+  box-shadow: 0 8px 18px rgb(var(--ink-rgb) / 0.1);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-label-pill.is-selected {
+  border-color: var(--blue);
+}
+
 .connection-delete-button {
   position: absolute;
   z-index: 32;
@@ -778,11 +920,11 @@ button {
   z-index: 160;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
-  min-height: 32px;
+  min-height: 28px;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid rgb(var(--ink-rgb) / 0.8);
-  padding: 6px 7px;
+  padding: 5px 6px;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -799,7 +941,7 @@ button {
   min-width: 0;
   padding: 0;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 880;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -834,16 +976,16 @@ button {
 
 .set-card-count {
   display: inline-flex;
-  min-width: 58px;
-  height: 20px;
+  min-width: 50px;
+  height: 17px;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 0 6px;
+  padding: 0 5px;
   border: 1px solid rgb(var(--ink-rgb) / 0.54);
   background: rgb(var(--paper-rgb) / 0.72);
   color: rgb(var(--ink-rgb) / 0.84);
-  font-size: 8px;
+  font-size: 7.5px;
   font-weight: 850;
   line-height: 1;
   text-transform: uppercase;
@@ -860,8 +1002,7 @@ button {
   text-overflow: ellipsis;
 }
 
-.set-header-button,
-.summary-set-actions button {
+.set-header-button {
   display: grid;
   width: 28px;
   height: 28px;
@@ -869,6 +1010,23 @@ button {
   border: 1px solid rgb(var(--ink-rgb) / 0.78);
   background: rgb(var(--paper-rgb) / 0.82);
   cursor: pointer;
+}
+
+.summary-set-actions button {
+  box-sizing: border-box;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgb(var(--ink-rgb) / 0.78);
+  background: rgb(var(--paper-rgb) / 0.82);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.summary-set-actions button svg {
+  display: block;
 }
 
 .set-header-button:hover,
@@ -898,7 +1056,7 @@ button {
 .summary-set-body {
   display: grid;
   align-content: center;
-  padding: 10px 13px;
+  padding: 7px 10px;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -907,13 +1065,13 @@ button {
 
 .summary-set-body p {
   display: -webkit-box;
-  min-height: 40px;
+  min-height: 30px;
   margin: 0;
   overflow: hidden;
   color: var(--ink);
-  font-size: 13px;
-  font-weight: 820;
-  line-height: 1.08;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.13;
   user-select: none;
   -webkit-user-select: none;
   -webkit-box-orient: vertical;
@@ -922,9 +1080,15 @@ button {
 
 .summary-set-actions {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   border-top: 1px solid rgb(var(--ink-rgb) / 0.78);
-  padding: 6px;
+  padding: 4px 6px;
+}
+
+.summary-set > .summary-set-actions {
+  min-height: 30px;
+  padding: 3px 7px;
 }
 
 .organization-node {
@@ -932,7 +1096,7 @@ button {
   width: 100%;
   height: 100%;
   overflow: visible;
-  border-radius: 22px;
+  border-radius: 0;
   box-shadow: none;
   cursor: grab;
   isolation: isolate;
@@ -949,14 +1113,14 @@ button {
   position: absolute;
   inset: 10px;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: 0;
   pointer-events: none;
 }
 
 .organization-scope-mark::before {
   position: absolute;
   inset: 26px 18px 36px;
-  border-radius: 18px;
+  border-radius: 0;
   background:
     radial-gradient(ellipse at 48% 50%, rgb(var(--organization-glow-rgb) / var(--organization-glow-core-alpha)), transparent 58%),
     linear-gradient(116deg, transparent 0%, rgb(var(--paper-lift-rgb) / 0.42) 42%, rgb(var(--ink-rgb) / 0.04) 74%, transparent 100%);
@@ -970,7 +1134,7 @@ button {
 .organization-scope-mark::after {
   position: absolute;
   inset: 42px 36px 56px;
-  border-radius: 16px;
+  border-radius: 0;
   background:
     repeating-linear-gradient(90deg, transparent 0 23px, rgb(var(--ink-rgb) / 0.04) 23px 24px),
     repeating-linear-gradient(180deg, transparent 0 23px, rgb(var(--ink-rgb) / 0.034) 23px 24px),
@@ -984,7 +1148,7 @@ button {
 .organization-scope-haze {
   position: absolute;
   inset: 40px 30px 50px;
-  border-radius: 18px;
+  border-radius: 0;
   background:
     radial-gradient(ellipse at 54% 48%, rgb(var(--organization-glow-rgb) / var(--organization-glow-haze-alpha)), transparent 54%),
     linear-gradient(90deg, transparent, rgb(var(--ink-rgb) / 0.04) 18%, transparent 36%, rgb(var(--paper-rgb) / 0.2) 62%, transparent);
@@ -1428,8 +1592,8 @@ button {
   color: var(--blue);
 }
 
-textarea,
-input:not(.field-title-input) {
+textarea:not(.field-title-input),
+input:not(.field-title-input):not(.connection-name-input) {
   width: 100%;
   border: 1px solid rgb(var(--ink-rgb) / 0.34);
   border-radius: 0;
@@ -1438,8 +1602,8 @@ input:not(.field-title-input) {
   outline: none;
 }
 
-textarea:focus,
-input:not(.field-title-input):focus {
+textarea:not(.field-title-input):focus,
+input:not(.field-title-input):not(.connection-name-input):focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 1px var(--blue);
 }
@@ -2524,13 +2688,13 @@ textarea {
   .field-heading {
     top: 18px;
     left: 18px;
+    width: calc(100vw - 36px);
+    max-width: none;
     gap: 8px;
   }
 
   .field-title-input {
-    width: 42vw;
-    min-width: 0;
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .field-toolbar {

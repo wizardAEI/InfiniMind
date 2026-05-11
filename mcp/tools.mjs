@@ -110,7 +110,7 @@ export function registerTools(server, { repoRoot }) {
     "infinimind_search",
     {
       title: "Search InfiniMind",
-      description: "Search projects, sets, cards, links, images, and optionally trash.",
+      description: "Search projects, sets, cards, links, images, connection relationship names, and optionally trash.",
       inputSchema: z.object({
         query: z.string().optional(),
         projectId: z.string().optional(),
@@ -336,6 +336,12 @@ export function registerTools(server, { repoRoot }) {
     toSetId: z.string().optional(),
     fromNodeId: z.string().optional(),
     toNodeId: z.string().optional(),
+    label: z.string().optional(),
+  }));
+  registerOperationTool(server, "infinimind_update_connection", "Update a connection relationship name.", z.object({
+    projectId: z.string().optional(),
+    connectionId: z.string(),
+    label: z.string(),
   }));
   registerOperationTool(server, "infinimind_delete_connection", "Delete a connection by ID or node pair.", z.object({
     projectId: z.string().optional(),
@@ -352,7 +358,23 @@ export function registerTools(server, { repoRoot }) {
     "infinimind_import_image_asset",
     {
       title: "Import InfiniMind Image Asset",
-      description: "Import an image file, data URL, or base64 payload into InfiniMind image storage.",
+      description: "Import an image or attachment file, data URL, or base64 payload into InfiniMind asset storage.",
+      inputSchema: z.object({
+        filePath: z.string().optional(),
+        dataUrl: z.string().optional(),
+        base64: z.string().optional(),
+        mime: z.string().optional(),
+        name: z.string().optional(),
+      }),
+    },
+    safeTool(async (input) => withDatabaseAsync(async (database) => ({ asset: await importImageAsset(database, input, { userDataDir: getUserDataDir() }) })))
+  );
+
+  server.registerTool(
+    "infinimind_import_asset",
+    {
+      title: "Import InfiniMind Asset",
+      description: "Import an image or attachment file, data URL, or base64 payload into InfiniMind asset storage.",
       inputSchema: z.object({
         filePath: z.string().optional(),
         dataUrl: z.string().optional(),
@@ -379,15 +401,20 @@ export function registerTools(server, { repoRoot }) {
       withDatabaseAsync(async (database) => {
         const current = loadWorkspace(database);
         const result = applyOperations(current, input.operations);
+        const validation = validateWorkspace(result.workspace, {
+          imageAssets: listImageAssets(database),
+        });
         if (input.dryRun) {
           return {
             dryRun: true,
             changes: result.changes,
+            validation,
             workspaceSummary: summarizeWorkspace(result.workspace, getWorkspaceMetadata(database)),
             workspace: input.includeWorkspace ? result.workspace : undefined,
           };
         }
 
+        requireValidWorkspace(validation);
         const saved = await saveWorkspace(database, result.workspace, {
           snapshotLabel: "MCP before batch operations",
           userDataDir: getUserDataDir(),
@@ -396,6 +423,7 @@ export function registerTools(server, { repoRoot }) {
           dryRun: false,
           updatedAt: saved.updatedAt,
           changes: result.changes,
+          validation,
           workspaceSummary: summarizeWorkspace(saved.state, getWorkspaceMetadata(database)),
           workspace: input.includeWorkspace ? saved.state : undefined,
         };
@@ -417,6 +445,10 @@ function registerOperationTool(server, name, description, inputSchema) {
         const current = loadWorkspace(database);
         const operation = { ...input, type: name.replace(/^infinimind_/, "") };
         const result = applyOperation(current, operation);
+        const validation = validateWorkspace(result.workspace, {
+          imageAssets: listImageAssets(database),
+        });
+        requireValidWorkspace(validation);
         const saved = await saveWorkspace(database, result.workspace, {
           snapshotLabel: `MCP before ${operation.type}`,
           userDataDir: getUserDataDir(),
@@ -428,12 +460,25 @@ function registerOperationTool(server, name, description, inputSchema) {
           result.changes[0]?.projectId,
           {
             changes: result.changes,
+            validation,
           },
           getWorkspaceMetadata(database)
         );
       })
     )
   );
+}
+
+function requireValidWorkspace(validation) {
+  if (validation.ok) {
+    return;
+  }
+  const errorSummary = validation.issues
+    .filter((issue) => issue.severity === "error")
+    .slice(0, 5)
+    .map((issue) => `${issue.code}${issue.message ? `: ${issue.message}` : ""}`)
+    .join("; ");
+  throw new Error(`Operation would leave the workspace invalid: ${errorSummary || "validation failed"}`);
 }
 
 async function launchInfiniMindApp(input = {}, repoRoot) {

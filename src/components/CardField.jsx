@@ -1,13 +1,14 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { ArchiveRestore, ChevronLeft, Layers3, Plus, Trash2, Ungroup, ZoomIn, ZoomOut } from "lucide-react";
+import { ArchiveRestore, ChevronLeft, FolderOpen, Layers3, Pencil, Plus, Trash2, Ungroup, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useViewportWidth } from "../hooks/useViewportWidth.js";
 import {
   clearTextSelection,
   editorSetSize,
   getCanvasPointFromClient,
-  getConnectionDeleteButtonPosition,
+  getConnectionControlPosition,
   getConnectionDropTargetId,
+  getConnectionLayerNodes,
   getEditorFocusYOffset,
   getEditorFocusZoom,
   getNodeCenter,
@@ -42,6 +43,7 @@ import {
   getCardPreview,
   getTrashCount,
   hasConnection,
+  normalizeConnectionLabel,
   normalizeTrash,
 } from "../lib/workspaceModel.js";
 import CardSetEditor from "./CardSetEditor.jsx";
@@ -76,10 +78,15 @@ function CardField({
   const [scopeTransition, setScopeTransition] = useState(null);
   const [confirmRequest, setConfirmRequest] = useState(null);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
+  const [renderedToolbarActions, setRenderedToolbarActions] = useState([]);
+  const [toolbarTooltip, setToolbarTooltip] = useState(null);
+  const toolbarRef = useRef(null);
   const panGesture = useRef(null);
   const setDrag = useRef(null);
   const connectionGesture = useRef(null);
   const dragFrame = useRef(null);
+  const toolbarActionsClearTimer = useRef(null);
+  const toolbarTooltipTimer = useRef(null);
   const suppressSetClick = useRef(false);
   const editorReturnView = useRef(null);
   const viewRef = useRef({ pan, zoom });
@@ -143,10 +150,12 @@ function CardField({
       ),
     [activeScopeId, connections, nodeLookup]
   );
-  const selectedConnectionButton = useMemo(() => {
-    const selectedConnection = visibleConnections.find((connection) => connection.id === selectedConnectionId);
-
-    return getConnectionDeleteButtonPosition({
+  const selectedConnection = useMemo(
+    () => visibleConnections.find((connection) => connection.id === selectedConnectionId) || null,
+    [selectedConnectionId, visibleConnections]
+  );
+  const selectedConnectionControl = useMemo(() => {
+    return getConnectionControlPosition({
       connection: selectedConnection,
       nodeLookup,
       editingSetId,
@@ -155,8 +164,51 @@ function CardField({
       zoom: scopeZoom,
       viewportWidth: width,
     });
-  }, [dragPreview, editingSetId, nodeLookup, scopePan, scopeZoom, selectedConnectionId, visibleConnections, width]);
-  const selectedNodeCount = selectedNodeIds.size;
+  }, [dragPreview, editingSetId, nodeLookup, scopePan, scopeZoom, selectedConnection, width]);
+  const connectionLabels = useMemo(
+    () =>
+      visibleConnections
+        .map((connection) => {
+          const label = normalizeConnectionLabel(connection.label);
+          if (!label) {
+            return null;
+          }
+
+          const { fromNode, toNode } = getConnectionLayerNodes(connection, nodeLookup, dragPreview);
+          if (!fromNode || !toNode) {
+            return null;
+          }
+
+          const from = getNodeCenter(fromNode, editingSetId === fromNode.id);
+          const to = getNodeCenter(toNode, editingSetId === toNode.id);
+          const dx = to.x - from.x;
+          const dy = to.y - from.y;
+          const distance = Math.hypot(dx, dy);
+          const lift = distance < 220 ? { x: 0, y: -78 } : { x: (-dy / distance) * 20, y: (dx / distance) * 20 };
+
+          return {
+            id: connection.id,
+            label: label.length > 80 ? `${label.slice(0, 77)}...` : label,
+            isSelected: connection.id === selectedConnectionId,
+            x: (from.x + to.x) / 2 + lift.x,
+            y: (from.y + to.y) / 2 + lift.y,
+          };
+        })
+        .filter(Boolean),
+    [dragPreview, editingSetId, nodeLookup, selectedConnectionId, visibleConnections]
+  );
+  const selectedNodes = useMemo(
+    () => displayNodes.filter((node) => selectedNodeIds.has(node.id)),
+    [displayNodes, selectedNodeIds]
+  );
+  const selectedNodeCount = selectedNodes.length;
+  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : null;
+  const selectedSetNode = selectedNode?.kind === "set" ? selectedNode : null;
+  const selectedOrganizationNode = selectedNode?.kind === "organization" ? selectedNode : null;
+  const shouldShowActiveScopeActions = Boolean(activeScope && selectedNodeCount === 0 && !selectedConnectionId);
+  const toolbarActionTransition = reduceMotion
+    ? { duration: 0 }
+    : { type: "tween", duration: 0.42, ease: [0.22, 1, 0.36, 1] };
   viewRef.current = { pan: scopePan, zoom: scopeZoom };
 
   useEffect(() => {
@@ -166,6 +218,12 @@ function CardField({
       }
       if (wheelZoomFrame.current) {
         window.cancelAnimationFrame(wheelZoomFrame.current);
+      }
+      if (toolbarActionsClearTimer.current) {
+        window.clearTimeout(toolbarActionsClearTimer.current);
+      }
+      if (toolbarTooltipTimer.current) {
+        window.clearTimeout(toolbarTooltipTimer.current);
       }
       if (connectionGesture.current) {
         const gesture = connectionGesture.current;
@@ -460,15 +518,17 @@ function CardField({
     setSelectedNodeIds(new Set([organization.id]));
   }
 
-  function moveOrganizationOutOfGroup(organizationId) {
-    const organization = organizationLookup.get(organizationId);
-    const parentOrganization = organization?.parentId ? organizationLookup.get(organization.parentId) : null;
-    if (!organization || !parentOrganization) {
+  function moveNodeOutOfOrganization(nodeId) {
+    const cardSet = sets.find((set) => set.id === nodeId);
+    const organization = organizationLookup.get(nodeId);
+    const node = cardSet || organization;
+    const parentOrganization = node?.parentId ? organizationLookup.get(node.parentId) : null;
+    if (!node || !parentOrganization) {
       return;
     }
 
     const targetScopeId = parentOrganization.parentId || null;
-    const nextPosition = getMovedOutNodePosition(organization, parentOrganization);
+    const nextPosition = getMovedOutNodePosition(node, parentOrganization);
 
     setBirthSourceId(null);
     setFreshId(null);
@@ -477,14 +537,23 @@ function CardField({
     setPendingConnection(null);
     setSelectedConnectionId(null);
     setConnectionSourceId(null);
-    setSelectedNodeIds(new Set([organizationId]));
+    setSelectedNodeIds(new Set([nodeId]));
     setScopeTransition("exit");
     setActiveScopeId(targetScopeId);
     window.setTimeout(() => setScopeTransition(null), reduceMotion ? 120 : 640);
 
     onChange((current) => ({
+      sets: current.sets.map((set) =>
+        set.id === nodeId
+          ? {
+              ...set,
+              parentId: targetScopeId,
+              position: nextPosition,
+            }
+          : set
+      ),
       organizations: current.organizations.map((item) =>
-        item.id === organizationId
+        item.id === nodeId
           ? {
               ...item,
               parentId: targetScopeId,
@@ -493,9 +562,17 @@ function CardField({
           : item
       ),
       connections: dedupeConnections(
-        rewireConnectionsForMovedOutNode(current.connections, organizationId, parentOrganization.id, targetScopeId)
+        rewireConnectionsForMovedOutNode(current.connections, nodeId, parentOrganization.id, targetScopeId)
       ),
     }));
+  }
+
+  function moveOrganizationOutOfGroup(organizationId) {
+    moveNodeOutOfOrganization(organizationId);
+  }
+
+  function moveCardSetOutOfOrganization(setId) {
+    moveNodeOutOfOrganization(setId);
   }
 
   function requestDeleteCardSet(setId) {
@@ -926,6 +1003,65 @@ function CardField({
       connections: connections.filter((connection) => connection.id !== selectedConnectionId),
     });
     setSelectedConnectionId(null);
+  }
+
+  function patchSelectedConnectionLabel(value) {
+    if (!selectedConnectionId) {
+      return;
+    }
+
+    const label = normalizeConnectionLabel(value);
+    onChange({
+      connections: connections.map((connection) =>
+        connection.id === selectedConnectionId ? { ...connection, label } : connection
+      ),
+    });
+  }
+
+  function hideToolbarTooltip() {
+    if (toolbarTooltipTimer.current) {
+      window.clearTimeout(toolbarTooltipTimer.current);
+      toolbarTooltipTimer.current = null;
+    }
+    setToolbarTooltip(null);
+  }
+
+  function queueToolbarTooltip(event, label) {
+    const button = event.currentTarget;
+    if (!label || !button) {
+      return;
+    }
+
+    hideToolbarTooltip();
+    toolbarTooltipTimer.current = window.setTimeout(() => {
+      const toolbarRect = toolbarRef.current?.getBoundingClientRect();
+      const buttonRect = button.getBoundingClientRect();
+      if (!toolbarRect || !buttonRect.width) {
+        return;
+      }
+
+      const center = buttonRect.left + buttonRect.width / 2 - toolbarRect.left;
+      const safeLeft = Math.min(Math.max(center, 72), Math.max(72, toolbarRect.width - 72));
+      setToolbarTooltip({
+        label,
+        left: safeLeft,
+        top: buttonRect.bottom - toolbarRect.top + 9,
+      });
+      toolbarTooltipTimer.current = null;
+    }, 650);
+  }
+
+  function getToolbarTooltipProps(label) {
+    return {
+      "data-toolbar-tooltip": label,
+      onBlur: hideToolbarTooltip,
+      onFocus: (event) => queueToolbarTooltip(event, label),
+      onMouseEnter: (event) => queueToolbarTooltip(event, label),
+      onMouseLeave: hideToolbarTooltip,
+      onPointerDown: hideToolbarTooltip,
+      onPointerEnter: (event) => queueToolbarTooltip(event, label),
+      onPointerLeave: hideToolbarTooltip,
+    };
   }
 
   function handleStageClick() {
@@ -1425,12 +1561,9 @@ function CardField({
 
     setSelectedNodeIds(new Set([node.id]));
     setSelectedConnectionId(null);
-    if (node.kind === "organization") {
-      enterOrganization(node.organization);
-      return;
+    if (node.kind === "set") {
+      setActiveSet(node.id);
     }
-
-    setActiveSet(node.id);
   }
 
   function enterOrganization(organization) {
@@ -1469,6 +1602,132 @@ function CardField({
     }
   }
 
+  const contextualToolbarActions = [];
+  if (selectedNodeCount > 0) {
+    contextualToolbarActions.push({
+      slot: "group",
+      subject: selectedNodes.map((node) => node.id).join("|"),
+      title: "Create organization from selection",
+      label: "Create organization from selection",
+      icon: Layers3,
+      onClick: createOrganizationFromSelection,
+    });
+  }
+  if (selectedSetNode) {
+    contextualToolbarActions.push({
+      slot: "primary",
+      subject: selectedSetNode.id,
+      title: "Edit selected card set",
+      label: "Edit selected card set",
+      icon: Pencil,
+      iconSize: 17,
+      onClick: () => openEditor(selectedSetNode.set),
+    });
+    if (selectedSetNode.parentId) {
+      contextualToolbarActions.push({
+        slot: "ungroup",
+        subject: selectedSetNode.id,
+        title: "Move selected card set out of organization",
+        label: "Move selected card set out of organization",
+        icon: Ungroup,
+        onClick: () => moveCardSetOutOfOrganization(selectedSetNode.id),
+      });
+    }
+    contextualToolbarActions.push({
+      slot: "delete",
+      subject: selectedSetNode.id,
+      title: "Move selected card set to trash",
+      label: "Move selected card set to trash",
+      icon: Trash2,
+      danger: true,
+      onClick: () => requestDeleteCardSet(selectedSetNode.id),
+    });
+  }
+  if (selectedOrganizationNode) {
+    contextualToolbarActions.push({
+      slot: "primary",
+      subject: selectedOrganizationNode.id,
+      title: "Open selected organization",
+      label: "Open selected organization",
+      icon: FolderOpen,
+      onClick: () => enterOrganization(selectedOrganizationNode.organization),
+    });
+    if (selectedOrganizationNode.parentId) {
+      contextualToolbarActions.push({
+        slot: "ungroup",
+        subject: selectedOrganizationNode.id,
+        title: "Move selected organization out of group",
+        label: "Move selected organization out of group",
+        icon: Ungroup,
+        onClick: () => moveOrganizationOutOfGroup(selectedOrganizationNode.id),
+      });
+    }
+    contextualToolbarActions.push({
+      slot: "delete",
+      subject: selectedOrganizationNode.id,
+      title: "Move selected organization to trash",
+      label: "Move selected organization to trash",
+      icon: Trash2,
+      danger: true,
+      onClick: () => requestDeleteOrganization(selectedOrganizationNode.id),
+    });
+  }
+  if (shouldShowActiveScopeActions) {
+    if (activeScope.parentId) {
+      contextualToolbarActions.push({
+        slot: "scope-ungroup",
+        subject: activeScope.id,
+        title: "Move this organization out of group",
+        label: "Move this organization out of group",
+        icon: Ungroup,
+        onClick: () => moveOrganizationOutOfGroup(activeScope.id),
+      });
+    }
+    contextualToolbarActions.push({
+      slot: "scope-delete",
+      subject: activeScope.id,
+      title: "Remove this organization",
+      label: "Remove this organization",
+      icon: Trash2,
+      danger: true,
+      onClick: () => requestDeleteOrganization(activeScope.id),
+    });
+  }
+  const contextualToolbarWidth =
+    contextualToolbarActions.length > 0
+      ? contextualToolbarActions.length * 38 + (contextualToolbarActions.length - 1) * 10
+      : 0;
+  const contextualToolbarSignature = contextualToolbarActions
+    .map((action) => `${action.slot}:${action.subject || ""}`)
+    .join("|");
+
+  useEffect(() => {
+    if (toolbarActionsClearTimer.current) {
+      window.clearTimeout(toolbarActionsClearTimer.current);
+      toolbarActionsClearTimer.current = null;
+    }
+
+    if (contextualToolbarActions.length > 0 || reduceMotion) {
+      setRenderedToolbarActions(contextualToolbarActions);
+      return undefined;
+    }
+
+    const clearTimer = window.setTimeout(() => {
+      setRenderedToolbarActions([]);
+      toolbarActionsClearTimer.current = null;
+    }, 460);
+    toolbarActionsClearTimer.current = clearTimer;
+
+    return () => {
+      window.clearTimeout(clearTimer);
+      if (toolbarActionsClearTimer.current === clearTimer) {
+        toolbarActionsClearTimer.current = null;
+      }
+    };
+  }, [contextualToolbarSignature, reduceMotion]);
+  const visibleToolbarActions =
+    contextualToolbarActions.length > 0 ? contextualToolbarActions : renderedToolbarActions;
+
   return (
     <section className="field-panel" onClick={handleStageClick}>
       {activeScope && (
@@ -1489,12 +1748,12 @@ function CardField({
           />
         </div>
       )}
-      <div className="field-toolbar">
+      <div className="field-toolbar" ref={toolbarRef}>
         <button
           className="icon-button"
           type="button"
-          title="Zoom out"
           aria-label="Zoom out"
+          {...getToolbarTooltipProps("Zoom out")}
           onClick={(event) => {
             event.stopPropagation();
             zoomBy(-zoomStep);
@@ -1505,8 +1764,8 @@ function CardField({
         <button
           className="zoom-readout"
           type="button"
-          title="Reset zoom"
           aria-label="Reset zoom"
+          {...getToolbarTooltipProps("Reset zoom")}
           onClick={(event) => {
             event.stopPropagation();
             resetZoom();
@@ -1517,8 +1776,8 @@ function CardField({
         <button
           className="icon-button"
           type="button"
-          title="Zoom in"
           aria-label="Zoom in"
+          {...getToolbarTooltipProps("Zoom in")}
           onClick={(event) => {
             event.stopPropagation();
             zoomBy(zoomStep);
@@ -1529,8 +1788,8 @@ function CardField({
         <button
           className="icon-button"
           type="button"
-          title="New card set"
           aria-label="Create card set"
+          {...getToolbarTooltipProps("New card set")}
           onClick={(event) => {
             event.stopPropagation();
             addCardSet();
@@ -1538,52 +1797,43 @@ function CardField({
         >
           <Plus size={18} />
         </button>
-        <button
-          className="icon-button"
-          type="button"
-          title="Create organization from selection"
-          aria-label="Create organization from selection"
-          disabled={selectedNodeCount === 0}
-          onClick={(event) => {
-            event.stopPropagation();
-            createOrganizationFromSelection();
+        <motion.div
+          className="contextual-toolbar-actions"
+          initial={false}
+          animate={{
+            width: contextualToolbarWidth,
+            marginLeft: contextualToolbarActions.length > 0 ? 10 : 0,
+            opacity: contextualToolbarActions.length > 0 ? 1 : 0,
           }}
+          transition={toolbarActionTransition}
+          aria-hidden={contextualToolbarActions.length === 0}
+          style={{ pointerEvents: contextualToolbarActions.length > 0 ? "auto" : "none" }}
         >
-          <Layers3 size={18} />
-        </button>
-        {activeScope?.parentId && (
-          <button
-            className="icon-button"
-            type="button"
-            title="Move this organization out of group"
-            aria-label="Move this organization out of group"
-            onClick={(event) => {
-              event.stopPropagation();
-              moveOrganizationOutOfGroup(activeScope.id);
-            }}
-          >
-            <Ungroup size={18} />
-          </button>
-        )}
-        {activeScope && (
-          <button
-            className="icon-button danger-icon-button"
-            type="button"
-            title="Remove this organization"
-            aria-label="Remove this organization"
-            onClick={(event) => {
-              event.stopPropagation();
-              requestDeleteOrganization(activeScope.id);
-            }}
-          >
-            <Trash2 size={18} />
-          </button>
-        )}
+          {visibleToolbarActions.map((action) => {
+            const Icon = action.icon;
+
+            return (
+              <button
+                className={`icon-button contextual-toolbar-button ${action.danger ? "danger-icon-button" : ""}`}
+                type="button"
+                aria-label={action.label}
+                key={action.slot}
+                {...getToolbarTooltipProps(action.title)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  action.onClick();
+                }}
+              >
+                <Icon size={action.iconSize || 18} />
+              </button>
+            );
+          })}
+        </motion.div>
         <button
           className="icon-button trash-toolbar-button"
           type="button"
-          title="Trash"
           aria-label={`Open trash with ${trashCount} item${trashCount === 1 ? "" : "s"}`}
+          {...getToolbarTooltipProps("Trash")}
           onClick={(event) => {
             event.stopPropagation();
             setIsTrashOpen(true);
@@ -1595,6 +1845,15 @@ function CardField({
           <Layers3 size={16} />
           <span>{String(scopeSets.length + scopeOrganizations.length).padStart(2, "0")}</span>
         </div>
+        {toolbarTooltip && (
+          <div
+            className="field-toolbar-tooltip"
+            role="tooltip"
+            style={{ left: toolbarTooltip.left, top: toolbarTooltip.top }}
+          >
+            {toolbarTooltip.label}
+          </div>
+        )}
       </div>
 
       <div
@@ -1643,7 +1902,10 @@ function CardField({
             pendingConnection={pendingConnection}
             selectedConnectionId={selectedConnectionId}
             dragPreview={dragPreview}
-            onSelectConnection={setSelectedConnectionId}
+            onSelectConnection={(connectionId) => {
+              setSelectedConnectionId(connectionId);
+              setSelectedNodeIds(new Set());
+            }}
           />
           {displayNodes.map((node, index) => {
             const cardSet = node.set;
@@ -1737,6 +1999,7 @@ function CardField({
                       openEditor(cardSet);
                     }}
                     onDelete={() => requestDeleteCardSet(cardSet.id)}
+                    onMoveOut={() => moveCardSetOutOfOrganization(cardSet.id)}
                     onDragStart={(event) => beginSetDrag(event, cardSet.id)}
                     onConnectionStart={(event) => beginConnection(event, cardSet.id)}
                     onConnectionMove={moveConnection}
@@ -1762,25 +2025,50 @@ function CardField({
               </motion.section>
             );
           })}
+          {connectionLabels.map((connectionLabel) => (
+            <div
+              className={`connection-label-pill ${connectionLabel.isSelected ? "is-selected" : ""}`}
+              key={connectionLabel.id}
+              style={{
+                transform: `translate(${connectionLabel.x}px, ${connectionLabel.y}px) translate(-50%, -50%)`,
+              }}
+            >
+              {connectionLabel.label}
+            </div>
+          ))}
         </motion.div>
-        {selectedConnectionButton && (
-          <button
-            className="connection-delete-button"
-            type="button"
-            title="Delete line"
-            aria-label="Delete selected line"
+        {selectedConnection && selectedConnectionControl && (
+          <div
+            className="connection-control"
             style={{
-              left: selectedConnectionButton.left,
-              top: selectedConnectionButton.top,
+              left: selectedConnectionControl.left,
+              top: selectedConnectionControl.top,
             }}
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              deleteSelectedConnection();
-            }}
           >
-            <Trash2 size={15} />
-          </button>
+            <Pencil size={14} aria-hidden="true" />
+            <input
+              className="connection-name-input"
+              type="text"
+              aria-label="Relationship name"
+              value={selectedConnection.label || ""}
+              maxLength={80}
+              placeholder="Relationship"
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) => patchSelectedConnectionLabel(event.target.value)}
+            />
+            <button
+              type="button"
+              title="Delete line"
+              aria-label="Delete selected line"
+              onClick={(event) => {
+                event.stopPropagation();
+                deleteSelectedConnection();
+              }}
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
         )}
       </div>
       {isTrashOpen && (
