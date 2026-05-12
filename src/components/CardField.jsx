@@ -1912,8 +1912,9 @@ function CardField({
             const organization = node.organization;
             const isSetNode = node.kind === "set";
             const isOrganizationNode = node.kind === "organization";
-            const isActiveSet = isSetNode && node.id === activeSetId;
             const isEditing = isSetNode && node.id === editingSetId;
+            const isCurrentSet = isSetNode && node.id === activeSetId;
+            const isActiveSet = isEditing;
             const isDraggingNode = dragPreview?.nodeId === node.id;
             const isSelectedNode = selectedNodeIds.has(node.id);
             const isDropTarget = isOrganizationNode && dropTargetOrganizationId === node.id;
@@ -1956,7 +1957,7 @@ function CardField({
                     : { type: "spring", stiffness: 150, damping: 28, mass: 1 }
                 }
                 style={{
-                  zIndex: isEditing ? 260 : isDropTarget ? 235 : isOrganizationNode ? 150 + index : isActiveSet ? 180 : 120 + index,
+                  zIndex: isEditing ? 260 : isDropTarget ? 235 : isOrganizationNode ? 150 + index : isCurrentSet ? 180 : 120 + index,
                 }}
                 onClick={(event) => handleNodeClick(event, node)}
                 onDoubleClick={(event) => {
