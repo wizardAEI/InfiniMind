@@ -105,6 +105,7 @@ export function projectToGraph(project) {
         x: set.position?.x || 0,
         y: set.position?.y || 0,
         cardCount: set.cards.length,
+        activeCardColor: (set.cards.find((card) => card.id === set.activeId) || set.cards[0])?.color || "none",
         preview: getCardPreview(set.cards.find((card) => card.id === set.activeId) || set.cards[0]),
       })),
     ],
@@ -117,6 +118,7 @@ export function projectToGraph(project) {
         fromNodeId,
         toNodeId,
         label: connection.label || "",
+        color: connection.color || "none",
       })),
   };
 }
@@ -200,7 +202,7 @@ export function searchWorkspace(workspace, options = {}) {
         ...(project.field?.sets || []).map((set) => [set.id, set]),
       ]);
       for (const connection of project.field?.connections || []) {
-        if (!matchesText(connection.label, query)) {
+        if (!matchesText(`${connection.label || ""}\n${connection.color || ""}`, query)) {
           continue;
         }
         const { fromNodeId, toNodeId } = getConnectionNodeIdsForOperations(connection);
@@ -210,7 +212,7 @@ export function searchWorkspace(workspace, options = {}) {
           kind: "connection",
           projectId: project.id,
           connectionId: connection.id,
-          title: connection.label,
+          title: connection.label || connection.color || "Connection",
           preview: `${fromNode?.title || fromNodeId} -> ${toNode?.title || toNodeId}`,
           resource: `infinimind://project/${project.id}/graph`,
         });
@@ -510,6 +512,7 @@ function matchesText(value, query) {
 function getSearchableCardText(card) {
   return [
     card.note,
+    card.color,
     card.imageUrl,
     card.imageTone,
     card.linkTitle,

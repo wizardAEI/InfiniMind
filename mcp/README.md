@@ -67,6 +67,10 @@ Use InfiniMind MCP to name the relationship on connection-123 "supports" and sea
 ```
 
 ```text
+Use InfiniMind MCP to mark the first card as green and mark the important connection as amber.
+```
+
+```text
 Use InfiniMind MCP to create a card set at canvas position { "x": 120, "y": -80 } with one seed card about launch risks.
 ```
 
@@ -80,6 +84,8 @@ Use InfiniMind MCP to review the active project and clean up empty cards, but on
 
 Coordinates use the same canvas/world coordinate system exposed by `infinimind://project/{projectId}/graph`.
 Individual cards inside a set still use order, index, and active-card state; `position` on card create/move/restore tools moves the target set. Automatic layouts can overwrite manual coordinates, so call `infinimind_layout_sets` before manual placement or skip layout when the client controls positions.
+Card and connection marker colors use `none`, `blue`, `green`, `amber`, `rose`, `violet`, or `slate`; pass `color` to create/update card and connection tools.
+Root Canvas is the default workspace for ordinary card-set networks. Create an organization only when restructuring Root Canvas or isolating a complex model/concept that would otherwise make Root Canvas visually dense; if the network is still easy to scan, keep the card sets under root.
 
 Set `INFINIMIND_USER_DATA_DIR=/path/to/user-data` to point the server at a test workspace instead of the default Electron user data directory.
 

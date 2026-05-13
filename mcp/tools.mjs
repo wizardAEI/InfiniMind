@@ -39,6 +39,7 @@ const cardInputSchema = z.object({
   imageUrl: z.string().optional(),
   imageTone: z.enum(["mono", "color"]).optional(),
   imageStyle: z.string().optional(),
+  color: z.enum(["none", "blue", "green", "amber", "rose", "violet", "slate"]).optional(),
   linkTitle: z.string().optional(),
   linkUrl: z.string().optional(),
   attachmentUrl: z.string().optional(),
@@ -227,7 +228,7 @@ export function registerTools(server, { repoRoot }) {
     projectId: z.string().optional(),
     trashId: z.string(),
   }));
-  registerOperationTool(server, "infinimind_create_organization", "Create an organization on a project canvas.", z.object({
+  registerOperationTool(server, "infinimind_create_organization", "Create an organization only for restructuring Root Canvas or isolating a complex model/concept; prefer root card sets for simple networks.", z.object({
     projectId: z.string().optional(),
     title: z.string().optional(),
     parentId: z.string().optional(),
@@ -242,7 +243,7 @@ export function registerTools(server, { repoRoot }) {
     pan: positionSchema.optional(),
     zoom: z.number().optional(),
   }));
-  registerOperationTool(server, "infinimind_group_nodes", "Group sibling sets or organizations into a new organization.", z.object({
+  registerOperationTool(server, "infinimind_group_nodes", "Group sibling sets or organizations into a new organization when visual complexity warrants a scoped canvas.", z.object({
     projectId: z.string().optional(),
     scopeId: z.string().nullable().optional(),
     nodeIds: z.array(z.string()),
@@ -281,6 +282,7 @@ export function registerTools(server, { repoRoot }) {
     note: z.string().optional(),
     imageUrl: z.string().optional(),
     imageTone: z.enum(["mono", "color"]).optional(),
+    color: z.enum(["none", "blue", "green", "amber", "rose", "violet", "slate"]).optional(),
     linkTitle: z.string().optional(),
     linkUrl: z.string().optional(),
     attachmentUrl: z.string().optional(),
@@ -297,6 +299,7 @@ export function registerTools(server, { repoRoot }) {
     imageUrl: z.string().optional(),
     imageTone: z.enum(["mono", "color"]).optional(),
     imageStyle: z.string().optional(),
+    color: z.enum(["none", "blue", "green", "amber", "rose", "violet", "slate"]).optional(),
     linkTitle: z.string().optional(),
     linkUrl: z.string().optional(),
     attachmentUrl: z.string().optional(),
@@ -337,11 +340,13 @@ export function registerTools(server, { repoRoot }) {
     fromNodeId: z.string().optional(),
     toNodeId: z.string().optional(),
     label: z.string().optional(),
+    color: z.enum(["none", "blue", "green", "amber", "rose", "violet", "slate"]).optional(),
   }));
-  registerOperationTool(server, "infinimind_update_connection", "Update a connection relationship name.", z.object({
+  registerOperationTool(server, "infinimind_update_connection", "Update a connection relationship name or marker color.", z.object({
     projectId: z.string().optional(),
     connectionId: z.string(),
-    label: z.string(),
+    label: z.string().optional(),
+    color: z.enum(["none", "blue", "green", "amber", "rose", "violet", "slate"]).optional(),
   }));
   registerOperationTool(server, "infinimind_delete_connection", "Delete a connection by ID or node pair.", z.object({
     projectId: z.string().optional(),

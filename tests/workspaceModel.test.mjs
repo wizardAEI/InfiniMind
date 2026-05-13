@@ -72,15 +72,16 @@ test("getConnectionNodeIds supports legacy set endpoints", () => {
   });
 });
 
-test("normalizeConnection keeps a trimmed relationship label", () => {
+test("normalizeConnection keeps a trimmed relationship label and marker color", () => {
   assert.deepEqual(
-    normalizeConnection({ id: "connection-a", fromNodeId: "set-a", toNodeId: "set-b", label: "  supports  " }),
+    normalizeConnection({ id: "connection-a", fromNodeId: "set-a", toNodeId: "set-b", label: "  supports  ", color: "amber" }),
     {
       id: "connection-a",
       scopeId: null,
       fromNodeId: "set-a",
       toNodeId: "set-b",
       label: "supports",
+      color: "amber",
     }
   );
 });

@@ -41,6 +41,9 @@ export function projectToMarkdown(project, options = {}) {
     if (options.includeCards !== false) {
       for (const [index, card] of set.cards.entries()) {
         lines.push(`### ${index + 1}. ${card.type.toUpperCase()} ${card.id}`);
+        if (card.color && card.color !== "none") {
+          lines.push(`Color: ${card.color}`);
+        }
         if (card.type === "text") {
           lines.push(card.note || "_No memo yet_");
         } else if (card.type === "image") {
@@ -72,7 +75,8 @@ export function projectToMarkdown(project, options = {}) {
       const from = nodeById.get(fromNodeId);
       const to = nodeById.get(toNodeId);
       const label = connection.label ? ` - ${connection.label}` : "";
-      lines.push(`- [${connection.scopeId || "root"}] ${from?.title || fromNodeId} -> ${to?.title || toNodeId}${label} (${connection.id})`);
+      const color = connection.color && connection.color !== "none" ? ` {${connection.color}}` : "";
+      lines.push(`- [${connection.scopeId || "root"}] ${from?.title || fromNodeId} -> ${to?.title || toNodeId}${label}${color} (${connection.id})`);
     }
     lines.push("");
   }

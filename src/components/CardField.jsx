@@ -43,11 +43,13 @@ import {
   getCardPreview,
   getTrashCount,
   hasConnection,
+  normalizeMarkerColor,
   normalizeConnectionLabel,
   normalizeTrash,
 } from "../lib/workspaceModel.js";
 import CardSetEditor from "./CardSetEditor.jsx";
 import { ClueSetSummary, OrganizationSummary } from "./CardSummaries.jsx";
+import ColorSwatchPicker from "./ColorSwatchPicker.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import ConnectionLayer from "./ConnectionLayer.jsx";
 import TrashModal from "./TrashModal.jsx";
@@ -104,6 +106,7 @@ function CardField({
   const activeScope = activeScopeId ? organizationLookup.get(activeScopeId) : null;
   const scopePan = activeScope?.pan || pan;
   const scopeZoom = activeScope?.zoom || zoom;
+  const isOverviewZoom = !editingSetId && scopeZoom <= 0.62;
   const scopePath = useMemo(() => getScopePath(activeScopeId, organizationLookup), [activeScopeId, organizationLookup]);
   const scopeSets = useMemo(
     () => sets.filter((set) => (set.parentId || null) === activeScopeId),
@@ -189,6 +192,7 @@ function CardField({
           return {
             id: connection.id,
             label: label.length > 80 ? `${label.slice(0, 77)}...` : label,
+            color: connection.color || "none",
             isSelected: connection.id === selectedConnectionId,
             x: (from.x + to.x) / 2 + lift.x,
             y: (from.y + to.y) / 2 + lift.y,
@@ -1018,6 +1022,19 @@ function CardField({
     });
   }
 
+  function patchSelectedConnectionColor(value) {
+    if (!selectedConnectionId) {
+      return;
+    }
+
+    const color = normalizeMarkerColor(value);
+    onChange({
+      connections: connections.map((connection) =>
+        connection.id === selectedConnectionId ? { ...connection, color } : connection
+      ),
+    });
+  }
+
   function hideToolbarTooltip() {
     if (toolbarTooltipTimer.current) {
       window.clearTimeout(toolbarTooltipTimer.current);
@@ -1081,7 +1098,7 @@ function CardField({
     if (
       event.button !== 0 ||
       event.target.closest(
-        ".clue-set, .organization-node, .field-toolbar, .scope-breadcrumbs, button, input, textarea, a, .connection-line, .connection-line-hit"
+        ".clue-set, .organization-node, .field-controls-layer, .scope-breadcrumbs, button, input, textarea, a, .connection-line, .connection-line-hit"
       )
     ) {
       return;
@@ -1748,102 +1765,106 @@ function CardField({
           />
         </div>
       )}
-      <div className="field-toolbar" ref={toolbarRef}>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="Zoom out"
-          {...getToolbarTooltipProps("Zoom out")}
-          onClick={(event) => {
-            event.stopPropagation();
-            zoomBy(-zoomStep);
-          }}
-        >
-          <ZoomOut size={18} />
-        </button>
-        <button
-          className="zoom-readout"
-          type="button"
-          aria-label="Reset zoom"
-          {...getToolbarTooltipProps("Reset zoom")}
-          onClick={(event) => {
-            event.stopPropagation();
-            resetZoom();
-          }}
-        >
-          {Math.round(scopeZoom * 100)}%
-        </button>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="Zoom in"
-          {...getToolbarTooltipProps("Zoom in")}
-          onClick={(event) => {
-            event.stopPropagation();
-            zoomBy(zoomStep);
-          }}
-        >
-          <ZoomIn size={18} />
-        </button>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="Create card set"
-          {...getToolbarTooltipProps("New card set")}
-          onClick={(event) => {
-            event.stopPropagation();
-            addCardSet();
-          }}
-        >
-          <Plus size={18} />
-        </button>
-        <motion.div
-          className="contextual-toolbar-actions"
-          initial={false}
-          animate={{
-            width: contextualToolbarWidth,
-            marginLeft: contextualToolbarActions.length > 0 ? 10 : 0,
-            opacity: contextualToolbarActions.length > 0 ? 1 : 0,
-          }}
-          transition={toolbarActionTransition}
-          aria-hidden={contextualToolbarActions.length === 0}
-          style={{ pointerEvents: contextualToolbarActions.length > 0 ? "auto" : "none" }}
-        >
-          {visibleToolbarActions.map((action) => {
-            const Icon = action.icon;
+      <div className="field-controls-layer" ref={toolbarRef}>
+        <div className="zoom-controls" aria-label="Canvas zoom controls">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Zoom out"
+            {...getToolbarTooltipProps("Zoom out")}
+            onClick={(event) => {
+              event.stopPropagation();
+              zoomBy(-zoomStep);
+            }}
+          >
+            <ZoomOut size={18} />
+          </button>
+          <button
+            className="zoom-readout"
+            type="button"
+            aria-label="Reset zoom"
+            {...getToolbarTooltipProps("Reset zoom")}
+            onClick={(event) => {
+              event.stopPropagation();
+              resetZoom();
+            }}
+          >
+            {Math.round(scopeZoom * 100)}%
+          </button>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Zoom in"
+            {...getToolbarTooltipProps("Zoom in")}
+            onClick={(event) => {
+              event.stopPropagation();
+              zoomBy(zoomStep);
+            }}
+          >
+            <ZoomIn size={18} />
+          </button>
+        </div>
+        <div className="field-toolbar">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Create card set"
+            {...getToolbarTooltipProps("New card set")}
+            onClick={(event) => {
+              event.stopPropagation();
+              addCardSet();
+            }}
+          >
+            <Plus size={18} />
+          </button>
+          <motion.div
+            className="contextual-toolbar-actions"
+            initial={false}
+            animate={{
+              width: contextualToolbarWidth,
+              marginLeft: contextualToolbarActions.length > 0 ? 10 : 0,
+              opacity: contextualToolbarActions.length > 0 ? 1 : 0,
+            }}
+            transition={toolbarActionTransition}
+            aria-hidden={contextualToolbarActions.length === 0}
+            style={{ pointerEvents: contextualToolbarActions.length > 0 ? "auto" : "none" }}
+          >
+            {visibleToolbarActions.map((action) => {
+              const Icon = action.icon;
 
-            return (
-              <button
-                className={`icon-button contextual-toolbar-button ${action.danger ? "danger-icon-button" : ""}`}
-                type="button"
-                aria-label={action.label}
-                key={action.slot}
-                {...getToolbarTooltipProps(action.title)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  action.onClick();
-                }}
-              >
-                <Icon size={action.iconSize || 18} />
-              </button>
-            );
-          })}
-        </motion.div>
-        <button
-          className="icon-button trash-toolbar-button"
-          type="button"
-          aria-label={`Open trash with ${trashCount} item${trashCount === 1 ? "" : "s"}`}
-          {...getToolbarTooltipProps("Trash")}
-          onClick={(event) => {
-            event.stopPropagation();
-            setIsTrashOpen(true);
-          }}
-        >
-          <ArchiveRestore size={18} />
-        </button>
-        <div className="card-count" aria-label={`${scopeSets.length} card sets and ${scopeOrganizations.length} organizations`}>
-          <Layers3 size={16} />
-          <span>{String(scopeSets.length + scopeOrganizations.length).padStart(2, "0")}</span>
+              return (
+                <button
+                  className={`icon-button contextual-toolbar-button ${action.danger ? "danger-icon-button" : ""}`}
+                  type="button"
+                  aria-label={action.label}
+                  key={action.slot}
+                  {...getToolbarTooltipProps(action.title)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    action.onClick();
+                  }}
+                >
+                  <Icon size={action.iconSize || 18} />
+                </button>
+              );
+            })}
+          </motion.div>
+          <button
+            className="icon-button trash-toolbar-button"
+            type="button"
+            aria-label={`Open trash with ${trashCount} item${trashCount === 1 ? "" : "s"}`}
+            {...getToolbarTooltipProps("Trash")}
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsTrashOpen(true);
+            }}
+          >
+            <ArchiveRestore size={18} />
+          </button>
+          <div className="card-count" aria-label={`${scopeSets.length} card sets and ${scopeOrganizations.length} organizations`}>
+            <Layers3 size={16} />
+            <span>{String(scopeSets.length + scopeOrganizations.length).padStart(2, "0")}</span>
+          </div>
         </div>
         {toolbarTooltip && (
           <div
@@ -1860,6 +1881,8 @@ function CardField({
         className={`field-stage clue-wall ${isPanning ? "is-panning" : ""} ${
           editingSetId ? "is-inspecting" : ""
         } ${
+          isOverviewZoom ? "is-overview-zoom" : ""
+        } ${
           isDraggingSet ? "is-set-dragging" : ""
         } ${
           scopeTransition ? `is-scope-${scopeTransition}` : ""
@@ -1869,7 +1892,7 @@ function CardField({
         onPointerUp={endPan}
         onPointerCancel={endPan}
         onWheel={(event) => {
-          if (event.target.closest(".clue-set, .organization-node, .field-toolbar, .scope-breadcrumbs, button, input, textarea, a")) {
+          if (event.target.closest(".clue-set, .organization-node, .field-controls-layer, .scope-breadcrumbs, button, input, textarea, a")) {
             return;
           }
 
@@ -1926,6 +1949,8 @@ function CardField({
               <motion.section
                 className={`clue-set-positioner ${isOrganizationNode ? "is-organization-positioner" : ""} ${
                   isActiveSet ? "is-active-set" : ""
+                } ${
+                  isOverviewZoom ? "is-overview-node" : ""
                 } ${
                   isSelectedNode ? "is-selected-node" : ""
                 } ${
@@ -2029,6 +2054,7 @@ function CardField({
           {connectionLabels.map((connectionLabel) => (
             <div
               className={`connection-label-pill ${connectionLabel.isSelected ? "is-selected" : ""}`}
+              data-marker-color={connectionLabel.color || "none"}
               key={connectionLabel.id}
               style={{
                 transform: `translate(${connectionLabel.x}px, ${connectionLabel.y}px) translate(-50%, -50%)`,
@@ -2057,6 +2083,12 @@ function CardField({
               placeholder="Relationship"
               onClick={(event) => event.stopPropagation()}
               onChange={(event) => patchSelectedConnectionLabel(event.target.value)}
+            />
+            <ColorSwatchPicker
+              className="connection-color-picker"
+              label="Line marker color"
+              value={selectedConnection.color}
+              onChange={patchSelectedConnectionColor}
             />
             <button
               type="button"

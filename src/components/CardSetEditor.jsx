@@ -5,6 +5,7 @@ import { cardTypes, typeMeta } from "../lib/cardDisplay.js";
 import { editorSetSize, visibleCardBuffer } from "../lib/canvasGeometry.js";
 import { createCardId, getRandomImageStyle, normalizeUrl } from "../lib/workspaceModel.js";
 import { CardCountBadge } from "./CardSummaries.jsx";
+import ColorSwatchPicker from "./ColorSwatchPicker.jsx";
 
 function CardSetEditor({
   cardSet,
@@ -75,6 +76,7 @@ function CardSetEditor({
       imageUrl: "",
       imageStyle: getRandomImageStyle(),
       imageTone: "mono",
+      color: "none",
       linkUrl: "",
       linkTitle: "",
       attachmentUrl: "",
@@ -99,7 +101,7 @@ function CardSetEditor({
   }
 
   return (
-    <div className={`clue-set editor-set ${isActiveSet ? "is-active-set" : ""}`}>
+    <div className={`clue-set editor-set ${isActiveSet ? "is-active-set" : ""}`} data-card-color={cardSet.cards[activeIndex]?.color || "none"}>
       <header className="clue-set-header" onPointerDown={onDragStart}>
         <input
           className="set-title-input"
@@ -243,6 +245,7 @@ function FieldCard({ card, index, active, onSelect, onTypeChange, onAdd, onDelet
       } ${
         turn % 2 === 0 ? "is-front" : "is-back"
       }`}
+      data-card-color={card.color || "none"}
       onClick={(event) => {
         event.stopPropagation();
         onSelect();
@@ -360,6 +363,13 @@ function CardFaceSurface({ card, type, index, className, disabled, onTypeChange,
             );
           })}
         </div>
+        <ColorSwatchPicker
+          className="card-color-picker"
+          disabled={disabled}
+          label="Card marker color"
+          value={card.color}
+          onChange={(color) => onUpdate({ color })}
+        />
         <div className="card-command-row">
           <button
             className="delete-card-button"

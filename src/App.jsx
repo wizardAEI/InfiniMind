@@ -15,7 +15,8 @@ function App() {
   const [theme, setTheme] = useThemePreference();
   const [view, setView] = useState("projects");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const fieldTitleInputRef = useRef(null);
+  const [isFieldTitleEditing, setIsFieldTitleEditing] = useState(false);
+  const fieldTitleEditorRef = useRef(null);
   const activeProject =
     workspaceState.projects.find((project) => project.id === workspaceState.activeProjectId) ||
     workspaceState.projects[0];
@@ -31,14 +32,14 @@ function App() {
   }, [activeProject]);
 
   useEffect(() => {
-    const input = fieldTitleInputRef.current;
-    if (!input || view !== "field") {
+    const input = fieldTitleEditorRef.current;
+    if (!input || view !== "field" || !isFieldTitleEditing) {
       return;
     }
 
-    input.style.height = "auto";
-    input.style.height = `${input.scrollHeight}px`;
-  }, [fieldState.fieldTitle, view]);
+    input.focus();
+    input.select();
+  }, [isFieldTitleEditing, view]);
 
   function patchFieldState(patch) {
     if (!activeProject) {
@@ -138,22 +139,37 @@ function App() {
               >
                 <ChevronLeft size={16} />
               </button>
-              <textarea
-                ref={fieldTitleInputRef}
-                className="field-title-input"
-                aria-label="Field title"
-                value={fieldState.fieldTitle}
-                onChange={(event) => setFieldTitle(event.target.value.replace(/[\r\n]+/g, " "))}
-                onFocus={(event) => event.target.select()}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    event.currentTarget.blur();
-                  }
-                }}
-                rows={1}
-                spellCheck="false"
-              />
+              {isFieldTitleEditing ? (
+                <input
+                  ref={fieldTitleEditorRef}
+                  className="field-title-input"
+                  aria-label="Field title"
+                  value={fieldState.fieldTitle}
+                  onBlur={() => setIsFieldTitleEditing(false)}
+                  onChange={(event) => setFieldTitle(event.target.value.replace(/[\r\n]+/g, " "))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      setIsFieldTitleEditing(false);
+                    }
+                  }}
+                  spellCheck="false"
+                />
+              ) : (
+                <button
+                  className="field-title-display"
+                  type="button"
+                  aria-label="Edit field title"
+                  title="Edit field title"
+                  onClick={() => setIsFieldTitleEditing(true)}
+                >
+                  {fieldState.fieldTitle || "Untitled field"}
+                </button>
+              )}
             </header>
 
             <CardField

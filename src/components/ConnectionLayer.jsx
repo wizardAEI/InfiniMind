@@ -43,6 +43,7 @@ function ConnectionLayer({
             />
             <line
               className={`connection-line ${isSelected ? "is-selected" : ""}`}
+              data-marker-color={connection.color || "none"}
               x1={from.x}
               y1={from.y}
               x2={to.x}

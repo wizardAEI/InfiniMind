@@ -1,5 +1,15 @@
 export const cardTypeIds = ["text", "image", "link", "attachment"];
 export const imageStyles = ["scan", "topography", "wave", "cells", "portal", "signal"];
+export const markerColors = [
+  { id: "none", label: "No marker" },
+  { id: "blue", label: "Blue marker" },
+  { id: "green", label: "Green marker" },
+  { id: "amber", label: "Amber marker" },
+  { id: "rose", label: "Rose marker" },
+  { id: "violet", label: "Violet marker" },
+  { id: "slate", label: "Slate marker" },
+];
+export const markerColorIds = markerColors.map((color) => color.id);
 export const storageKey = "infinimind.workspace-state.v1";
 export const legacyStorageKey = "infinimind.field-state.v1";
 export const workspaceVersion = 1;
@@ -17,6 +27,7 @@ export function createSeedCard(id = "card-1", note) {
     imageUrl: "",
     imageStyle: getRandomImageStyle(),
     imageTone: "mono",
+    color: "none",
     linkUrl: "https://example.com",
     linkTitle: "Reference path",
     attachmentUrl: "",
@@ -34,6 +45,7 @@ export function createBlankCard(id = createCardId()) {
     imageUrl: "",
     imageStyle: getRandomImageStyle(),
     imageTone: "mono",
+    color: "none",
     linkUrl: "",
     linkTitle: "",
     attachmentUrl: "",
@@ -272,6 +284,7 @@ export function normalizeCard(card) {
     imageUrl: typeof card?.imageUrl === "string" ? card.imageUrl : "",
     imageStyle: imageStyles.includes(card?.imageStyle) ? card.imageStyle : getRandomImageStyle(),
     imageTone: card?.imageTone === "color" ? "color" : "mono",
+    color: normalizeMarkerColor(card?.color),
     linkUrl: typeof card?.linkUrl === "string" ? card.linkUrl : "",
     linkTitle: typeof card?.linkTitle === "string" ? card.linkTitle : "",
     attachmentUrl: typeof card?.attachmentUrl === "string" ? card.attachmentUrl : "",
@@ -294,11 +307,16 @@ export function normalizeConnection(connection) {
     fromNodeId,
     toNodeId,
     label: normalizeConnectionLabel(connection?.label),
+    color: normalizeMarkerColor(connection?.color),
   };
 }
 
 export function normalizeConnectionLabel(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+export function normalizeMarkerColor(value) {
+  return markerColorIds.includes(value) ? value : "none";
 }
 
 export function getConnectionNodeIds(connection) {

@@ -31,10 +31,27 @@ test("operations create cards, connections, trash and restore items", () => {
     type: "create_card",
     projectId,
     setId: newSetId,
-    card: { type: "link", linkTitle: "Docs", linkUrl: "https://example.com" },
+    card: { type: "link", linkTitle: "Docs", linkUrl: "https://example.com", color: "green" },
   });
   workspace = result.workspace;
   const cardId = workspace.projects[0].field.sets.find((set) => set.id === newSetId).activeId;
+  assert.equal(
+    workspace.projects[0].field.sets.find((set) => set.id === newSetId).cards.find((card) => card.id === cardId).color,
+    "green"
+  );
+
+  result = applyOperation(workspace, {
+    type: "update_card",
+    projectId,
+    setId: newSetId,
+    cardId,
+    color: "blue",
+  });
+  workspace = result.workspace;
+  assert.equal(
+    workspace.projects[0].field.sets.find((set) => set.id === newSetId).cards.find((card) => card.id === cardId).color,
+    "blue"
+  );
 
   result = applyOperation(workspace, {
     type: "create_connection",
@@ -42,22 +59,28 @@ test("operations create cards, connections, trash and restore items", () => {
     fromSetId: originalSetId,
     toSetId: newSetId,
     label: "  informs  ",
+    color: "amber",
   });
   workspace = result.workspace;
   assert.equal(workspace.projects[0].field.connections.length, 1);
   const connectionId = workspace.projects[0].field.connections[0].id;
   assert.equal(workspace.projects[0].field.connections[0].label, "informs");
+  assert.equal(workspace.projects[0].field.connections[0].color, "amber");
 
   result = applyOperation(workspace, {
     type: "update_connection",
     projectId,
     connectionId,
     label: "contrasts with",
+    color: "rose",
   });
   workspace = result.workspace;
   assert.equal(workspace.projects[0].field.connections[0].label, "contrasts with");
+  assert.equal(workspace.projects[0].field.connections[0].color, "rose");
   assert.equal(projectToGraph(workspace.projects[0]).edges[0].label, "contrasts with");
+  assert.equal(projectToGraph(workspace.projects[0]).edges[0].color, "rose");
   assert.equal(searchWorkspace(workspace, { query: "contrasts" }).some((match) => match.kind === "connection"), true);
+  assert.equal(searchWorkspace(workspace, { query: "rose" }).some((match) => match.kind === "connection"), true);
 
   assert.throws(() => applyOperation(workspace, { type: "trash_card", projectId, setId: newSetId, cardId }), /confirm/);
   result = applyOperation(workspace, { type: "trash_card", projectId, setId: newSetId, cardId, confirm: true });

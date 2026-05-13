@@ -28,7 +28,7 @@ function ClueSetSummary({
   const preview = getCardPreview(activeCard);
 
   return (
-    <article className={`clue-set summary-set ${isActiveSet ? "is-active-set" : ""}`}>
+    <article className={`clue-set summary-set ${isActiveSet ? "is-active-set" : ""}`} data-card-color={activeCard?.color || "none"}>
       <header className="clue-set-header" onPointerDown={onDragStart}>
         <strong className="set-title-text">{cardSet.title}</strong>
         <CardCountBadge count={cardSet.cards.length} />

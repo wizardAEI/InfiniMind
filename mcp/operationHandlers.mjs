@@ -16,6 +16,7 @@ import {
   maxZoom,
   minZoom,
   normalizeCard,
+  normalizeMarkerColor,
   normalizeConnectionLabel,
   normalizeTrash,
 } from "../src/lib/workspaceModel.js";
@@ -542,10 +543,7 @@ function updateCardOperation(workspace, input) {
   const { set, card } = getCardOrThrow(project, input.setId, input.cardId);
   const patch = {};
 
-  if (input.type !== undefined) {
-    if (!cardTypeIds.includes(input.type)) {
-      throw new Error(`Unsupported card type: ${input.type}`);
-    }
+  if (cardTypeIds.includes(input.type)) {
     patch.type = input.type;
   }
   for (const key of ["note", "imageUrl", "linkTitle", "linkUrl", "attachmentUrl", "attachmentName", "attachmentMime"]) {
@@ -561,6 +559,9 @@ function updateCardOperation(workspace, input) {
   }
   if (input.imageStyle !== undefined) {
     patch.imageStyle = String(input.imageStyle);
+  }
+  if (input.color !== undefined) {
+    patch.color = normalizeMarkerColor(input.color);
   }
 
   Object.assign(card, normalizeCard({ ...card, ...patch }));
@@ -732,6 +733,7 @@ function createConnectionOperation(workspace, input) {
     fromNodeId,
     toNodeId,
     label: normalizeConnectionLabel(input.label),
+    color: normalizeMarkerColor(input.color),
   };
   project.field.connections.push(connection);
   touchProject(project);
@@ -741,7 +743,12 @@ function createConnectionOperation(workspace, input) {
 function updateConnectionOperation(workspace, input) {
   const project = getProjectOrThrow(workspace, input.projectId);
   const connection = getConnectionOrThrow(project, input.connectionId);
-  connection.label = normalizeConnectionLabel(input.label);
+  if (input.label !== undefined) {
+    connection.label = normalizeConnectionLabel(input.label);
+  }
+  if (input.color !== undefined) {
+    connection.color = normalizeMarkerColor(input.color);
+  }
   touchProject(project);
   return change("update_connection", project.id, "Updated connection.", workspaceResourceLinks(project.id));
 }
@@ -831,6 +838,7 @@ function createCardFromInput(input = {}) {
     imageUrl: typeof input.imageUrl === "string" ? input.imageUrl : "",
     imageStyle: typeof input.imageStyle === "string" ? input.imageStyle : getRandomImageStyle(),
     imageTone: input.imageTone === "color" ? "color" : "mono",
+    color: normalizeMarkerColor(input.color),
     linkUrl: typeof input.linkUrl === "string" ? input.linkUrl : "",
     linkTitle: typeof input.linkTitle === "string" ? input.linkTitle : "",
     attachmentUrl: typeof input.attachmentUrl === "string" ? input.attachmentUrl : "",

@@ -1,5 +1,7 @@
 import * as z from "zod/v4";
 
+const organizationGuidance = `Organization guidance: Root Canvas is the default place for ordinary card-set networks. Prefer creating or updating card sets directly under root while the network remains easy to scan. Create an organization only when you are restructuring Root Canvas or isolating a complex model/concept that would otherwise make Root Canvas visually dense.`;
+
 export function registerPrompts(server) {
   server.registerPrompt(
     "review_project",
@@ -22,7 +24,7 @@ Use infinimind://project/${projectId}/markdown and infinimind://project/${projec
     },
     async ({ projectId, topic, count }) => promptMessage(`Expand InfiniMind project ${projectId} around topic "${topic}" with ${count || "a small set of"} new cards/sets.
 
-First read the project resources, then propose a concise plan. Use infinimind_apply_operations with dryRun: true before any real write.`)
+First read the project resources, then propose a concise plan. ${organizationGuidance} Use infinimind_apply_operations with dryRun: true before any real write.`)
   );
 
   server.registerPrompt(
@@ -34,7 +36,7 @@ First read the project resources, then propose a concise plan. Use infinimind_ap
     },
     async ({ projectId, layoutGoal }) => promptMessage(`Organize InfiniMind project ${projectId}${layoutGoal ? ` for this goal: ${layoutGoal}` : ""}.
 
-Read the graph and project markdown, suggest a layout and missing/removable connections, then use dry-run operations before writing.`)
+Read the graph and project markdown, suggest a layout and missing/removable connections, then use dry-run operations before writing. ${organizationGuidance}`)
   );
 
   server.registerPrompt(
@@ -49,7 +51,7 @@ Read the graph and project markdown, suggest a layout and missing/removable conn
 Source:
 ${sourceText}
 
-Create a dry-run batch with coherent sets, text cards, and useful links only if URLs are present in the source.`)
+Create a dry-run batch with coherent sets, text cards, and useful links only if URLs are present in the source. ${organizationGuidance}`)
   );
 
   server.registerPrompt(
