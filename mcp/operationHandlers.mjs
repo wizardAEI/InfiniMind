@@ -30,8 +30,11 @@ import {
 } from "./operationScope.mjs";
 
 function createProjectOperation(workspace, input) {
-  const field = createDefaultState(input.name?.trim() || `Project ${String(workspace.projects.length + 1).padStart(2, "0")}`);
-  if (typeof input.seedNote === "string") {
+  const hasSeedNote = typeof input.seedNote === "string";
+  const field = createDefaultState(input.name?.trim() || `Project ${String(workspace.projects.length + 1).padStart(2, "0")}`, {
+    includeStarterSet: hasSeedNote,
+  });
+  if (hasSeedNote) {
     field.sets[0].cards[0].note = input.seedNote;
   }
   const project = createProject(workspace.projects.length, field);

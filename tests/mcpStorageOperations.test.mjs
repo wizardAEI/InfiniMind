@@ -82,6 +82,23 @@ test("batch dry-run applies operations without mutating caller state", () => {
   assert.equal(result.workspace.projects[0].field.sets.length, 2);
 });
 
+test("create_project starts MCP-authored canvases without a starter set unless seeded", () => {
+  let workspace = createDefaultWorkspaceState();
+
+  let result = applyOperation(workspace, { type: "create_project", name: "AI Canvas" });
+  workspace = result.workspace;
+  const emptyProject = workspace.projects.find((project) => project.id === workspace.activeProjectId);
+  assert.equal(emptyProject.field.sets.length, 0);
+  assert.equal(emptyProject.field.activeSetId, null);
+  assert.equal(validateWorkspace(workspace).ok, true);
+
+  result = applyOperation(workspace, { type: "create_project", name: "Seeded Canvas", seedNote: "Start here" });
+  workspace = result.workspace;
+  const seededProject = workspace.projects.find((project) => project.id === workspace.activeProjectId);
+  assert.equal(seededProject.field.sets.length, 1);
+  assert.equal(seededProject.field.sets[0].cards[0].note, "Start here");
+});
+
 test("card operations can place their target set at canvas coordinates", () => {
   let workspace = createDefaultWorkspaceState();
   const projectId = workspace.activeProjectId;

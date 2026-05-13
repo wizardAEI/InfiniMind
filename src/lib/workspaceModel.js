@@ -74,15 +74,15 @@ export function createOrganization(index = 0, id = createOrganizationId()) {
   };
 }
 
-export function createDefaultState(fieldTitle = "Title") {
-  const firstSet = createCardSet();
+export function createDefaultState(fieldTitle = "Title", options = {}) {
+  const firstSet = options.includeStarterSet === false ? null : createCardSet();
 
   return {
     version: storageVersion,
     fieldTitle,
-    sets: [firstSet],
+    sets: firstSet ? [firstSet] : [],
     organizations: [],
-    activeSetId: firstSet.id,
+    activeSetId: firstSet?.id || null,
     connections: [],
     trash: createEmptyTrash(),
     pan: { x: 0, y: 0 },
@@ -170,7 +170,7 @@ export function normalizeFieldState(value) {
           activeId: value.activeId,
         }
       : null;
-  const rawSets = Array.isArray(value?.sets) && value.sets.length > 0 ? value.sets : migratedSet ? [migratedSet] : null;
+  const rawSets = Array.isArray(value?.sets) ? value.sets : migratedSet ? [migratedSet] : null;
   let sets = rawSets ? rawSets.map(normalizeCardSet) : fallback.sets;
   const rawOrganizations = Array.isArray(value?.organizations) ? value.organizations : [];
   const organizations = normalizeOrganizations(rawOrganizations);
@@ -180,7 +180,7 @@ export function normalizeFieldState(value) {
     ...sets.map((set) => [set.id, set.parentId || null]),
     ...organizations.map((organization) => [organization.id, organization.parentId || null]),
   ]);
-  const activeSetId = sets.some((set) => set.id === value?.activeSetId) ? value.activeSetId : sets[0].id;
+  const activeSetId = sets.some((set) => set.id === value?.activeSetId) ? value.activeSetId : sets[0]?.id || null;
   const connections = Array.isArray(value?.connections)
     ? value.connections.map(normalizeConnection).filter((connection) => {
         if (!connection) return false;

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   collectImageIds,
   createConnectionId,
+  createDefaultState,
   createDefaultWorkspaceState,
   createOrganization,
   dedupeConnections,
@@ -26,6 +27,24 @@ test("normalizeWorkspaceState migrates legacy single-field state", () => {
   assert.equal(workspace.projects[0].field.version, 5);
   assert.equal(workspace.projects[0].field.sets[0].parentId, null);
   assert.deepEqual(workspace.projects[0].field.organizations, []);
+});
+
+test("createDefaultState can intentionally create an empty canvas", () => {
+  const field = createDefaultState("MCP Canvas", { includeStarterSet: false });
+  const normalized = normalizeWorkspaceState({
+    version: 1,
+    activeProjectId: "project-empty",
+    projects: [
+      {
+        id: "project-empty",
+        name: "MCP Canvas",
+        field,
+      },
+    ],
+  });
+
+  assert.deepEqual(normalized.projects[0].field.sets, []);
+  assert.equal(normalized.projects[0].field.activeSetId, null);
 });
 
 test("dedupeConnections treats connections as undirected", () => {

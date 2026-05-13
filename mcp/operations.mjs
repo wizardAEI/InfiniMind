@@ -475,7 +475,7 @@ export function workspaceSchema() {
                 fieldTitle: { type: "string" },
                 sets: { type: "array" },
                 organizations: { type: "array" },
-                activeSetId: { type: "string" },
+                activeSetId: { type: ["string", "null"] },
                 connections: { type: "array" },
                 trash: { type: "object" },
                 pan: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } } },
