@@ -1,6 +1,6 @@
 # InfiniMind
 
-![InfiniMind organization canvas](docs/screenshots/optimized/organization-canvas.png)
+![InfiniMind local-first canvas hero](docs/screenshots/optimized/readme-hero.png)
 
 InfiniMind is a local-first thinking canvas for shaping loose ideas into connected card fields. Card sets stay tactile and inspectable; organizations appear as blurred clusters of schematic cards that suggest grouped material without exposing their internal layout on the parent canvas.
 

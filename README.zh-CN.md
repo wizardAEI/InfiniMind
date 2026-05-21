@@ -1,6 +1,6 @@
 # InfiniMind
 
-![InfiniMind organization 画布](docs/screenshots/optimized/organization-canvas.png)
+![InfiniMind 本地优先画布展示图](docs/screenshots/optimized/readme-hero.png)
 
 InfiniMind 是一个本地优先的思维画布，用来把零散想法整理成可连接、可缩放、可进入的卡片场。Card set 保持像纸面卡片一样可检查；organization 则显示成几张示意卡片聚合后的模糊标记，在父级画布上提示里面有成组内容，但不暴露真实内部布局。
 
